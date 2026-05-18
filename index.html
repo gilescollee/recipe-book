@@ -438,6 +438,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<!-- Tesseract.js — free in-browser OCR, no API key needed -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1327,11 +1329,10 @@ function openAddRecipe() {
       sourceWrap.appendChild(row);
       const callout=el('div',{class:'ai-callout'});
       const tw=el('div',{class:'ai-callout-text'});
-      tw.appendChild(el('strong',{},'✨ Auto-fill with AI'));
-      tw.appendChild(document.createTextNode(loadApiKey()?'Send your photo(s) to Claude to extract name, ingredients, method and more.':'Set your Anthropic API key in Settings (⚙) to enable AI extraction.'));
+      tw.appendChild(el('strong',{},'📷 Auto-fill from photo'));
+      tw.appendChild(document.createTextNode('Upload a photo and we\'ll read the text to fill in the recipe fields for you.'));
       callout.appendChild(tw);
-      const xBtn=el('button',{class:'btn primary',type:'button',onclick:()=>runExtractWithAI(sourceWrap)},'Extract with AI');
-      if(!loadApiKey()) xBtn.disabled=true;
+      const xBtn=el('button',{class:'btn primary',type:'button',onclick:()=>runOCRExtract(sourceWrap)},'Read text from photo');
       callout.appendChild(xBtn); sourceWrap.appendChild(callout);
     } else if(currentSource==='instagram') {
       const row=el('div',{class:'form-row'});
@@ -1494,64 +1495,129 @@ async function deleteCustomRecipe(id) {
   state.selected.delete(id); closeModal(); updateShopBar();
 }
 
-// ============ AI extraction ============
+// ============ OCR extraction (Tesseract.js — free, no API key) ============
 
-function fileToBase64(file) {
-  return new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=()=>res({base64:r.result.split(',')[1],mediaType:file.type||'image/jpeg'});
-    r.onerror=rej; r.readAsDataURL(file);
-  });
-}
+async function runOCRExtract(sourceWrap) {
+  if (!addRecipeImages.length) { alert('Pick a photo first.'); return; }
 
-const EXTRACT_PROMPT=`Look at this recipe card (or cards — front and back). Extract the recipe into JSON with these exact fields:
-
-{
-  "name": "string — recipe title",
-  "cuisine": "string — single word/phrase like Italian, Indian, Mexican, Moroccan",
-  "protein": "string — one of Chicken, Beef, Lamb, Pork, Fish, Prawns, Vegetarian, Vegan",
-  "timeMinutes": "integer — maximum cook time in minutes",
-  "baseServings": "integer — usually 2 for Gousto cards (read from the x2 column)",
-  "calories": "string like '486 kcal' per person if shown, else null",
-  "desc": "string — one short sentence describing the dish",
-  "ingredients": [["ingredient name", "quantity with unit"], ...],
-  "pantry": "string — comma-separated 'You need' staples like 'salt, pepper, olive oil'",
-  "allergens": "string — comma-separated like 'A1: gluten, A7: milk'",
-  "method": ["step 1 text", "step 2 text", ...],
-  "time": "string display like '20–30 min' if shown"
-}
-
-For Gousto cards, read the x2 (2-portion) ingredient column. Quantities should be exactly as shown (e.g. "120g", "1 tbsp", "5.5g", "2 × 65g"). For counts like "1 brown onion", use just "1" as the quantity. Use null for any field that isn't clearly shown. Return ONLY the JSON object, with no markdown fences or commentary.`;
-
-async function runExtractWithAI(sourceWrap) {
-  const apiKey=loadApiKey();
-  if(!apiKey){alert('Set an API key in Settings (⚙) first.');return;}
-  if(!addRecipeImages.length){alert('Pick a photo first.');return;}
-  let status=sourceWrap.querySelector('.extract-status');
-  if(status) status.remove();
-  status=el('div',{class:'extract-status'},'Extracting with AI… this can take 10–30 seconds.');
+  let status = sourceWrap.querySelector('.extract-status');
+  if (status) status.remove();
+  status = el('div', { class: 'extract-status' }, '📷 Reading text from photo… this may take 15–30 seconds.');
   sourceWrap.appendChild(status);
+
   try {
-    const content=[];
-    for(const f of addRecipeImages){const{base64,mediaType}=await fileToBase64(f);content.push({type:'image',source:{type:'base64',media_type:mediaType,data:base64}});}
-    content.push({type:'text',text:EXTRACT_PROMPT});
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'content-type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:loadModel(),max_tokens:4096,messages:[{role:'user',content}]})
-    });
-    if(!resp.ok) throw new Error('API call failed ('+resp.status+'): '+await resp.text());
-    const data=await resp.json();
-    let text=data.content[0].text||'';
-    text=text.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/,'$1');
-    fillFormFromExtract(JSON.parse(text));
-    status.className='extract-status success';
-    status.textContent='✓ Extracted. Review the fields below, then click Save recipe.';
-  } catch(e) {
+    // Run Tesseract on all uploaded images and combine the text
+    let fullText = '';
+    for (const file of addRecipeImages) {
+      status.textContent = addRecipeImages.length > 1
+        ? `📷 Reading image ${addRecipeImages.indexOf(file)+1} of ${addRecipeImages.length}…`
+        : '📷 Reading text from photo… this may take 15–30 seconds.';
+      const result = await Tesseract.recognize(file, 'eng', { logger: () => {} });
+      fullText += result.data.text + '\n\n';
+    }
+
+    fullText = fullText.trim();
+    if (!fullText) throw new Error('No text found in the photo. Try a clearer, well-lit image.');
+
+    // Parse the raw OCR text into recipe fields
+    const parsed = parseOCRText(fullText);
+    fillFormFromExtract(parsed);
+
+    // Show the raw OCR text in a collapsible so user can check it
+    status.className = 'extract-status success';
+    status.innerHTML = '✓ Text read successfully. Review and edit the fields below, then click Save recipe.';
+
+    // Append a collapsible showing the raw text
+    const rawWrap = el('div', { style: 'margin-top:8px' });
+    const toggle = el('button', {
+      class: 'btn ghost small', type: 'button', style: 'font-size:12px; padding:4px 8px;'
+    }, 'Show raw text ▾');
+    const rawBox = el('pre', {
+      style: 'display:none;white-space:pre-wrap;word-break:break-word;font-size:11px;background:#F9FAFB;border:1px solid var(--border);border-radius:6px;padding:10px;margin-top:6px;max-height:200px;overflow-y:auto;'
+    }, fullText);
+    toggle.onclick = () => {
+      const open = rawBox.style.display !== 'none';
+      rawBox.style.display = open ? 'none' : 'block';
+      toggle.textContent = open ? 'Show raw text ▾' : 'Hide raw text ▴';
+    };
+    rawWrap.appendChild(toggle);
+    rawWrap.appendChild(rawBox);
+    status.appendChild(rawWrap);
+
+  } catch (e) {
     console.error(e);
-    status.className='extract-status error';
-    status.textContent='Extraction failed: '+e.message;
+    status.className = 'extract-status error';
+    status.textContent = 'Could not read photo: ' + e.message;
   }
+}
+
+function parseOCRText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // ── Recipe name: first non-trivial line (longer than 4 chars, not all caps short label) ──
+  const nameLine = lines.find(l => l.length > 4 && !/^(ingredients|method|you need|allergens|serves|kcal)/i.test(l));
+
+  // ── Time: look for patterns like "20-30 min", "35 mins", "50 minutes" ──
+  const timeMatch = text.match(/(\d+)[–\-–]?(\d+)?\s*min(utes?)?/i);
+  const timeMinutes = timeMatch
+    ? (timeMatch[2] ? parseInt(timeMatch[2]) : parseInt(timeMatch[1]))
+    : null;
+  const timeDisplay = timeMatch ? timeMatch[0].replace(/minutes?/i, 'min').trim() : null;
+
+  // ── Calories: look for patterns like "486 kcal" ──
+  const calMatch = text.match(/(\d{3,4})\s*kcal/i);
+  const calories = calMatch ? calMatch[0] : null;
+
+  // ── Ingredients: lines that contain a quantity pattern ──
+  // Quantity patterns: "100g", "2 tbsp", "1 tsp", "30ml", "2 x 65g", "½", numbers at start
+  const qtyPattern = /(\d+[\d.,½¼¾]*\s*(g|ml|kg|l|tbsp?|tsp?|x|×)?|\d*[½¼¾])\b/i;
+  const sectionHeaders = /^(ingredients|method|you need|allergens|serves|nutrition|kcal|per serving|cook time|prep time)/i;
+
+  let inIngredients = false;
+  let inMethod = false;
+  const ingredientLines = [];
+  const methodLines = [];
+
+  for (const line of lines) {
+    if (/^ingredients/i.test(line)) { inIngredients = true; inMethod = false; continue; }
+    if (/^(method|steps?|instructions?|directions?)/i.test(line)) { inMethod = true; inIngredients = false; continue; }
+    if (/^(you need|allergens|nutrition|per serving)/i.test(line)) { inIngredients = false; inMethod = false; continue; }
+
+    if (inMethod) {
+      // Numbered steps like "1." "1)" or just long sentences
+      const cleaned = line.replace(/^\d+[.)]\s*/, '').trim();
+      if (cleaned.length > 20) methodLines.push(cleaned);
+    } else if (inIngredients || (!inMethod && qtyPattern.test(line) && line.length < 80)) {
+      // Looks like an ingredient line
+      // Try to split "salmon fillet 200g" → name + qty
+      const match = line.match(/^(.+?)\s+([\d½¼¾][\d.,½¼¾]*\s*(g|ml|kg|l|tbsp?|tsp?|x|×|pack|bunch|clove|sprig|handful)?[\w\s]*)$/i);
+      if (match) {
+        ingredientLines.push([match[1].trim(), match[2].trim()]);
+      } else {
+        ingredientLines.push([line, '']);
+      }
+    }
+  }
+
+  // ── Method fallback: if no method section found, take long lines (>60 chars) that look like sentences ──
+  if (!methodLines.length) {
+    lines.forEach(l => {
+      if (l.length > 60 && /[a-z]/.test(l) && !qtyPattern.test(l.slice(0,5))) {
+        const cleaned = l.replace(/^\d+[.)]\s*/, '').trim();
+        methodLines.push(cleaned);
+      }
+    });
+  }
+
+  return {
+    name: nameLine || '',
+    timeMinutes,
+    time: timeDisplay,
+    calories,
+    ingredients: ingredientLines,
+    method: methodLines,
+    desc: null, cuisine: null, protein: null, pantry: null, allergens: null
+  };
 }
 
 function fillFormFromExtract(r) {
@@ -1570,22 +1636,10 @@ function openSettings() {
   state.openRecipeId=null; state.shoppingListOpen=false;
   const c=document.getElementById('modal-content'); c.innerHTML='';
   c.appendChild(el('h1',{},'Settings'));
-  c.appendChild(el('div',{class:'meta'},'API key and model used for AI recipe extraction. Stored locally in your browser only.'));
-  const keyRow=el('div',{class:'form-row'});
-  keyRow.appendChild(el('label',{for:'s-key'},'Anthropic API key'));
-  const keyInput=el('input',{type:'password',id:'s-key',placeholder:'sk-ant-...',value:loadApiKey()});
-  keyRow.appendChild(keyInput);
-  keyRow.appendChild(el('div',{class:'form-hint'},'Get one at console.anthropic.com. Required for the AI extraction feature.'));
-  c.appendChild(keyRow);
-  const modelRow=el('div',{class:'form-row'});
-  modelRow.appendChild(el('label',{for:'s-model'},'Model'));
-  const modelInput=el('input',{type:'text',id:'s-model',value:loadModel()});
-  modelRow.appendChild(modelInput);
-  modelRow.appendChild(el('div',{class:'form-hint'},'Default: claude-sonnet-4-5. Try claude-haiku-4-5-20251001 for cheaper/faster or claude-sonnet-4-6 / claude-opus-4-6 for top quality.'));
-  c.appendChild(modelRow);
+  c.appendChild(el('div',{class:'meta'},'App settings. Stored locally in your browser only.'));
   const actions=el('div',{class:'modal-actions'});
   actions.appendChild(el('button',{class:'btn ghost',type:'button',onclick:closeModal},'Cancel'));
-  actions.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>{saveApiKey(keyInput.value.trim());saveModel(modelInput.value.trim()||DEFAULT_MODEL);closeModal();}},'Save'));
+  actions.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>{closeModal();}},'Done'));
   c.appendChild(actions);
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow='hidden';
