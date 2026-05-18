@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Recipe Book</title>
+<title>Dans La Cuisine</title>
 <style>
   :root {
     --accent: #E60E2B;
@@ -23,12 +23,42 @@
     padding: 48px 24px 120px;
   }
   .wrap { max-width: 1200px; margin: 0 auto; }
-  header { margin-bottom: 24px; text-align: center; }
+  header { margin-bottom: 24px; text-align: center; position: relative; padding-top: 8px; }
   header h1 { margin: 0 0 8px; font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
   header p { margin: 0; color: var(--muted); font-size: 16px; }
 
   .header-actions {
     display: flex; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center;
+  }
+
+  /* Basket button in header */
+  .basket-header-btn {
+    position: relative; background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px; font-size: 16px; cursor: pointer;
+    font-family: inherit; transition: border-color 0.15s; line-height: 1;
+  }
+  .basket-header-btn:hover { border-color: var(--accent); }
+  .basket-badge {
+    position: absolute; top: -7px; right: -7px;
+    background: var(--accent); color: #fff; border-radius: 999px;
+    font-size: 10px; font-weight: 700; min-width: 17px; height: 17px;
+    display: none; align-items: center; justify-content: center; padding: 0 3px;
+  }
+  .basket-badge.show { display: flex; }
+
+  /* Per-card basket button */
+  .card-basket-btn {
+    position: absolute; top: 10px; right: 10px; z-index: 3;
+    background: rgba(255,255,255,0.92); border: 1px solid var(--border);
+    border-radius: 8px; padding: 5px 7px; font-size: 14px; line-height: 1;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .card-basket-btn:hover { border-color: var(--accent); background: var(--soft-pink); }
+  .card-basket-btn.in-basket { background: var(--accent); border-color: var(--accent); }
+
+  /* User area — pinned top-right of header */
+  .user-area {
+    position: absolute; top: 0; right: 0; display: flex; align-items: center;
   }
   .servings-control {
     display: inline-flex; align-items: center; gap: 4px;
@@ -122,31 +152,8 @@
   .tag.custom { background: #EDE9FE; color: #5B21B6; }
   .tag.community { background: #E0F2FE; color: #0369A1; }
 
-  /* Shop mode */
-  body.shop-mode .card { padding-left: 0; }
-  .checkbox {
-    position: absolute; top: 14px; left: 14px; width: 24px; height: 24px;
-    border: 2px solid #D1D5DB; border-radius: 6px; background: #fff; z-index: 2;
-    display: none; align-items: center; justify-content: center;
-    font-size: 14px; color: #fff; font-weight: bold;
-  }
-  body.shop-mode .checkbox { display: flex; }
-  body.shop-mode .card-top h2,
-  body.shop-mode .card-top .rcode { padding-left: 30px; }
-  body.shop-mode .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-  body.shop-mode .card.selected .checkbox { background: var(--accent); border-color: var(--accent); }
-  body.shop-mode .card.selected .checkbox::before { content: '✓'; }
-
-  .shop-bar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: #fff; border-top: 1px solid var(--border); padding: 14px 24px;
-    display: none; align-items: center; justify-content: space-between; gap: 14px;
-    box-shadow: 0 -8px 24px rgba(0,0,0,0.08); z-index: 40;
-  }
-  body.shop-mode .shop-bar { display: flex; }
-  .shop-bar-info { font-size: 14px; }
-  .shop-bar-info strong { color: var(--accent); }
-  .shop-bar-actions { display: flex; gap: 10px; }
+  /* Card selected state (basket) */
+  .card.in-basket { border-color: var(--accent); }
 
   .empty-state {
     background: #fff; border: 1px dashed var(--border); border-radius: 14px;
@@ -322,19 +329,18 @@
 
   /* User menu button (shown when signed in) */
   .user-menu {
-    display: none; align-items: center; gap: 8px;
-    background: #fff; border: 1px solid var(--border); border-radius: 8px;
-    padding: 5px 10px 5px 6px; font-size: 14px; cursor: pointer;
+    display: none; align-items: center; gap: 5px;
+    background: #fff; border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 8px 4px 4px; cursor: pointer;
     position: relative; font-family: inherit;
   }
   .user-menu:hover { border-color: var(--accent); }
   .user-avatar {
-    width: 28px; height: 28px; border-radius: 50%;
+    width: 30px; height: 30px; border-radius: 50%;
     background: var(--accent); color: #fff;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; flex-shrink: 0; pointer-events: none;
+    font-size: 13px; font-weight: 700; flex-shrink: 0; pointer-events: none;
   }
-  .user-name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; pointer-events: none; }
   .user-caret { color: var(--muted); font-size: 10px; pointer-events: none; }
   .user-dropdown {
     position: absolute; top: calc(100% + 6px); right: 0;
@@ -349,7 +355,8 @@
   }
   .user-dropdown button:hover { background: #F9FAFB; }
   .user-dropdown button.danger { color: #B91C1C; }
-  .dd-email { padding: 10px 16px 6px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dd-name { padding: 10px 16px 2px; font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dd-email { padding: 2px 16px 6px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dd-divider { height: 1px; background: var(--border); margin: 4px 0; }
 
   /* Auth modal overlay */
@@ -428,9 +435,7 @@
     .auth-modal { padding: 32px 20px 28px; }
     .ingredients { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
-    .shop-bar { padding: 12px 14px; flex-direction: column; gap: 10px; align-items: stretch; }
-    .shop-bar-actions { justify-content: stretch; }
-    .shop-bar-actions .btn { flex: 1; }
+    .user-area { top: 4px; }
   }
 </style>
 
@@ -442,7 +447,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Recipe Book</h1>
+    <h1 id="app-title">Dans La Cuisine</h1>
     <p id="header-sub">Click any card to open the full recipe.</p>
     <div class="header-actions">
       <div class="servings-control">
@@ -452,21 +457,25 @@
         <button class="servings-btn" type="button" id="servings-plus" aria-label="Increase servings">+</button>
       </div>
       <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
-      <button class="btn" id="shop-toggle" type="button">Shop mode</button>
-      <button class="btn ghost small" id="settings-btn" type="button" title="Settings">⚙</button>
+      <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
+        🛒<span class="basket-badge" id="basket-count"></span>
+      </button>
+    </div>
 
+    <!-- User area — top right of header -->
+    <div class="user-area">
       <!-- Shown when NOT signed in -->
       <button class="btn" id="login-btn" type="button" style="display:none" onclick="openAuthModal('signin')">Sign in</button>
 
       <!-- Shown when signed in -->
       <button class="user-menu" id="user-menu" type="button" onclick="toggleUserDropdown()">
         <div class="user-avatar" id="user-avatar">?</div>
-        <span class="user-name" id="user-name"></span>
         <span class="user-caret">▾</span>
         <div class="user-dropdown" id="user-dropdown">
+          <div class="dd-name" id="user-name-display"></div>
           <div class="dd-email" id="user-email-display"></div>
           <div class="dd-divider"></div>
-          <button type="button" onclick="event.stopPropagation();closeUserDropdown();openSettings()">Settings</button>
+          <button type="button" onclick="event.stopPropagation();closeUserDropdown();openSettings()">⚙ Settings</button>
           <button type="button" class="danger" onclick="event.stopPropagation();doSignOut()">Sign out</button>
         </div>
       </button>
@@ -507,16 +516,6 @@
   <footer id="footer-text">Recipes you add are saved in your browser. Sign in to save to the cloud and share with others.</footer>
 </div>
 
-<div class="shop-bar" id="shop-bar">
-  <div class="shop-bar-info">
-    <strong id="shop-count">0</strong> <span id="shop-count-label">recipes selected</span>
-  </div>
-  <div class="shop-bar-actions">
-    <button class="btn" id="shop-clear" type="button">Clear</button>
-    <button class="btn" id="shop-exit" type="button">Exit shop mode</button>
-    <button class="btn primary" id="shop-list-btn" type="button">View shopping list</button>
-  </div>
-</div>
 
 <!-- Recipe / shopping list modal -->
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
@@ -570,17 +569,18 @@ let privateUnsubscribe = null;
 function updateAuthUI() {
   const loginBtn    = document.getElementById('login-btn');
   const userMenu    = document.getElementById('user-menu');
-  const userName    = document.getElementById('user-name');
   const userAvatar  = document.getElementById('user-avatar');
+  const nameEl      = document.getElementById('user-name-display');
   const emailEl     = document.getElementById('user-email-display');
   const footerEl    = document.getElementById('footer-text');
 
   if (currentUser) {
     loginBtn.style.display = 'none';
     userMenu.style.display = 'inline-flex';
-    const name = currentUser.displayName || currentUser.email.split('@')[0];
-    userName.textContent   = name;
-    userAvatar.textContent = name.charAt(0).toUpperCase();
+    const firstName = loadFirstName();
+    const displayName = firstName || currentUser.displayName || currentUser.email.split('@')[0];
+    userAvatar.textContent = displayName.charAt(0).toUpperCase();
+    if (nameEl)  nameEl.textContent  = displayName;
     if (emailEl) emailEl.textContent = currentUser.email;
     if (footerEl) footerEl.textContent = 'Signed in as ' + currentUser.email + '. New recipes save to the cloud.';
   } else {
@@ -588,6 +588,7 @@ function updateAuthUI() {
     userMenu.style.display = 'none';
     if (footerEl) footerEl.textContent = 'Recipes you add are saved in your browser. Sign in to save to the cloud and share with others.';
   }
+  updateTitle();
 }
 
 if (FIREBASE_ENABLED) {
@@ -596,6 +597,10 @@ if (FIREBASE_ENABLED) {
 
   firebaseAuth.onAuthStateChanged(function(user) {
     currentUser = user;
+    // If signing in via Google and we don't have a stored first name yet, extract it
+    if (user && user.displayName && !loadFirstName()) {
+      saveFirstName(user.displayName.split(' ')[0]);
+    }
     updateAuthUI();
     if (user) {
       startPrivateListener(user.uid);
@@ -697,6 +702,18 @@ function renderAuthModal(mode) {
 
   c.appendChild(el('div', { class: 'auth-divider' }, 'or'));
 
+  // First name (for sign-up: required; for sign-in: optional to set/update)
+  var nameRow = el('div', { class: 'form-row' });
+  nameRow.appendChild(el('label', { for: 'auth-firstname' }, 'First name' + (mode === 'signin' ? ' (optional)' : '')));
+  var nameInput = el('input', {
+    type: 'text', id: 'auth-firstname',
+    placeholder: mode === 'signup' ? 'Your first name' : loadFirstName() || 'Your first name',
+    autocomplete: 'given-name'
+  });
+  if (mode === 'signin' && loadFirstName()) nameInput.value = loadFirstName();
+  nameRow.appendChild(nameInput);
+  c.appendChild(nameRow);
+
   // Email
   var emailRow = el('div', { class: 'form-row' });
   emailRow.appendChild(el('label', { for: 'auth-email' }, 'Email'));
@@ -742,20 +759,31 @@ function clearAuthError() {
 
 function doEmailSignIn() {
   clearAuthError();
-  var email    = document.getElementById('auth-email').value.trim();
-  var password = document.getElementById('auth-password').value;
+  var email     = document.getElementById('auth-email').value.trim();
+  var password  = document.getElementById('auth-password').value;
+  var firstName = (document.getElementById('auth-firstname')?.value || '').trim();
   if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
   firebaseAuth.signInWithEmailAndPassword(email, password)
-    .then(function() { closeAuthModal(); })
+    .then(function() {
+      if (firstName) { saveFirstName(firstName); updateTitle(); }
+      closeAuthModal();
+    })
     .catch(function(e) { showAuthError(friendlyAuthError(e.code)); });
 }
 
 function doEmailSignUp() {
   clearAuthError();
-  var email    = document.getElementById('auth-email').value.trim();
-  var password = document.getElementById('auth-password').value;
+  var email     = document.getElementById('auth-email').value.trim();
+  var password  = document.getElementById('auth-password').value;
+  var firstName = (document.getElementById('auth-firstname')?.value || '').trim();
   if (!email || !password) { showAuthError('Please enter your email and password.'); return; }
+  if (!firstName) { showAuthError('Please enter your first name.'); return; }
   firebaseAuth.createUserWithEmailAndPassword(email, password)
+    .then(function(result) {
+      saveFirstName(firstName);
+      updateTitle();
+      return result.user.updateProfile({ displayName: firstName });
+    })
     .then(function() { closeAuthModal(); })
     .catch(function(e) { showAuthError(friendlyAuthError(e.code)); });
 }
@@ -764,7 +792,13 @@ function signInWithGoogle() {
   clearAuthError();
   var provider = new firebase.auth.GoogleAuthProvider();
   firebaseAuth.signInWithPopup(provider)
-    .then(function() { closeAuthModal(); })
+    .then(function(result) {
+      if (result.user.displayName && !loadFirstName()) {
+        saveFirstName(result.user.displayName.split(' ')[0]);
+        updateTitle();
+      }
+      closeAuthModal();
+    })
     .catch(function(e) { if (e.code !== 'auth/popup-closed-by-user') showAuthError(friendlyAuthError(e.code)); });
 }
 
@@ -811,7 +845,8 @@ const SERVINGS_KEY  = 'recipe-book-servings';
 const API_KEY_KEY   = 'recipe-book-api-key';
 const MODEL_KEY     = 'recipe-book-model';
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
-const GEMINI_KEY_KEY = 'recipe-book-gemini-key';
+const GEMINI_KEY_KEY  = 'recipe-book-gemini-key';
+const FIRST_NAME_KEY  = 'recipe-book-first-name';
 
 function loadCustom()   { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); } catch(e){ return []; } }
 function saveCustom(a)  { localStorage.setItem(STORAGE_KEY, JSON.stringify(a)); }
@@ -823,6 +858,16 @@ function loadModel()    { return localStorage.getItem(MODEL_KEY)||DEFAULT_MODEL;
 function saveModel(m)   { localStorage.setItem(MODEL_KEY, m); }
 function loadGeminiKey(){ return localStorage.getItem(GEMINI_KEY_KEY)||''; }
 function saveGeminiKey(k){ localStorage.setItem(GEMINI_KEY_KEY, k); }
+function loadFirstName(){ return localStorage.getItem(FIRST_NAME_KEY)||''; }
+function saveFirstName(n){ localStorage.setItem(FIRST_NAME_KEY, n); }
+
+function updateTitle() {
+  const name = loadFirstName();
+  const title = name ? name + ' Dans La Cuisine' : 'Dans La Cuisine';
+  const h = document.getElementById('app-title');
+  if (h) h.textContent = title;
+  document.title = title;
+}
 
 let customRecipes = loadCustom();
 
@@ -948,7 +993,7 @@ function categorize(name) {
 
 const state = {
   filters: { protein: new Set(), cuisine: new Set(), time: new Set() },
-  shopMode: false, selected: new Set(), servings: loadServings(),
+  selected: new Set(), servings: loadServings(),
   openRecipeId: null, shoppingListOpen: false
 };
 
@@ -1007,11 +1052,21 @@ function clearFilters() {
 }
 
 function renderCard(r) {
+  const inBasket = state.selected.has(r.id);
   const card = el('button', {
-    class: 'card'+(state.selected.has(r.id)?' selected':''),
+    class: 'card' + (inBasket ? ' in-basket' : ''),
     type: 'button', onclick: ()=>onCardClick(r)
   });
-  card.appendChild(el('div', { class:'checkbox' }));
+
+  // Basket button — top-right of card
+  const basketBtn = el('button', {
+    class: 'card-basket-btn' + (inBasket ? ' in-basket' : ''),
+    type: 'button',
+    title: inBasket ? 'Remove from basket' : 'Add to shopping basket',
+    onclick: (e) => { e.stopPropagation(); toggleBasket(r.id); }
+  }, '🛒');
+  card.appendChild(basketBtn);
+
   if (r.image) card.appendChild(el('img', { class:'card-image', src:r.image, alt:r.name }));
 
   const top = el('div', { class:'card-top' });
@@ -1059,12 +1114,7 @@ function renderGrid() {
   container.appendChild(grid);
 }
 
-function onCardClick(r) {
-  if (state.shopMode) {
-    if (state.selected.has(r.id)) state.selected.delete(r.id); else state.selected.add(r.id);
-    renderGrid(); updateShopBar();
-  } else { openRecipe(r); }
-}
+function onCardClick(r) { openRecipe(r); }
 
 // ============ Pantry view ============
 
@@ -1113,27 +1163,21 @@ function renderPantry() {
   if (!c.children.length||c.children.length===1) c.appendChild(el('div',{class:'empty-state'},'No pantry items found yet.'));
 }
 
-// ============ Shop mode ============
+// ============ Basket ============
 
-function toggleShopMode() {
-  state.shopMode = !state.shopMode;
-  document.body.classList.toggle('shop-mode', state.shopMode);
-  const btn = document.getElementById('shop-toggle');
-  btn.textContent = state.shopMode ? 'Exit shop mode' : 'Shop mode';
-  btn.classList.toggle('primary', state.shopMode);
-  document.getElementById('header-sub').textContent = state.shopMode
-    ? "Tap cards to select. When you're ready, view the shopping list."
-    : 'Click any card to open the full recipe.';
-  updateShopBar(); renderGrid();
+function toggleBasket(id) {
+  if (state.selected.has(id)) state.selected.delete(id); else state.selected.add(id);
+  updateBasketCount();
+  renderGrid();
 }
-function updateShopBar() {
+
+function updateBasketCount() {
   const n = state.selected.size;
-  document.getElementById('shop-count').textContent = n;
-  document.getElementById('shop-count-label').textContent = n===1?'recipe selected':'recipes selected';
-  const slb=document.getElementById('shop-list-btn');
-  slb.disabled=n===0; slb.style.opacity=n===0?0.4:1; slb.style.pointerEvents=n===0?'none':'auto';
+  const badge = document.getElementById('basket-count');
+  if (badge) { badge.textContent = n || ''; badge.classList.toggle('show', n > 0); }
 }
-function clearSelected() { state.selected.clear(); renderGrid(); updateShopBar(); }
+
+function clearSelected() { state.selected.clear(); updateBasketCount(); renderGrid(); }
 
 // ============ Shopping list ============
 
@@ -1493,7 +1537,7 @@ async function deleteCustomRecipe(id) {
     saveCustom(customRecipes);
     renderFilters(); renderGrid();
   }
-  state.selected.delete(id); closeModal(); updateShopBar();
+  state.selected.delete(id); updateBasketCount(); closeModal();
 }
 
 // ============ Recipe extraction (Gemini Flash vision) ============
@@ -1542,7 +1586,7 @@ async function runOCRExtract(sourceWrap) {
 Use null for any fields not visible. Return ONLY the JSON object.` });
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1613,13 +1657,8 @@ function openSettings() {
 
 // ============ Wire up ============
 
-document.getElementById('shop-toggle')  .addEventListener('click', toggleShopMode);
-document.getElementById('shop-exit')    .addEventListener('click', toggleShopMode);
-document.getElementById('shop-clear')   .addEventListener('click', clearSelected);
-document.getElementById('shop-list-btn').addEventListener('click', openShoppingList);
 document.getElementById('filter-clear') .addEventListener('click', clearFilters);
 document.getElementById('add-recipe')   .addEventListener('click', openAddRecipe);
-document.getElementById('settings-btn') .addEventListener('click', openSettings);
 document.getElementById('servings-minus').addEventListener('click',()=>setServings(state.servings-1));
 document.getElementById('servings-plus') .addEventListener('click',()=>setServings(state.servings+1));
 document.querySelectorAll('.view-tab').forEach(t=>t.addEventListener('click',()=>showView(t.dataset.view)));
@@ -1627,9 +1666,10 @@ document.querySelectorAll('.view-tab').forEach(t=>t.addEventListener('click',()=
 function bootstrap() {
   updateServingsDisplay();
   updateAuthUI();
+  updateTitle();
+  updateBasketCount();
   renderFilters();
   renderGrid();
-  updateShopBar();
 }
 
 fetch('./recipes.json',{cache:'no-cache'})
