@@ -438,8 +438,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<!-- Tesseract.js — free in-browser OCR, no API key needed -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -813,6 +811,7 @@ const SERVINGS_KEY  = 'recipe-book-servings';
 const API_KEY_KEY   = 'recipe-book-api-key';
 const MODEL_KEY     = 'recipe-book-model';
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
+const GEMINI_KEY_KEY = 'recipe-book-gemini-key';
 
 function loadCustom()   { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); } catch(e){ return []; } }
 function saveCustom(a)  { localStorage.setItem(STORAGE_KEY, JSON.stringify(a)); }
@@ -822,6 +821,8 @@ function loadApiKey()   { return localStorage.getItem(API_KEY_KEY)||''; }
 function saveApiKey(k)  { localStorage.setItem(API_KEY_KEY, k); }
 function loadModel()    { return localStorage.getItem(MODEL_KEY)||DEFAULT_MODEL; }
 function saveModel(m)   { localStorage.setItem(MODEL_KEY, m); }
+function loadGeminiKey(){ return localStorage.getItem(GEMINI_KEY_KEY)||''; }
+function saveGeminiKey(k){ localStorage.setItem(GEMINI_KEY_KEY, k); }
 
 let customRecipes = loadCustom();
 
@@ -1330,9 +1331,9 @@ function openAddRecipe() {
       const callout=el('div',{class:'ai-callout'});
       const tw=el('div',{class:'ai-callout-text'});
       tw.appendChild(el('strong',{},'📷 Auto-fill from photo'));
-      tw.appendChild(document.createTextNode('Upload a photo and we\'ll read the text to fill in the recipe fields for you.'));
+      tw.appendChild(document.createTextNode('Upload a photo and Gemini AI will extract the recipe fields for you. Add your free API key in Settings first.'));
       callout.appendChild(tw);
-      const xBtn=el('button',{class:'btn primary',type:'button',onclick:()=>runOCRExtract(sourceWrap)},'Read text from photo');
+      const xBtn=el('button',{class:'btn primary',type:'button',onclick:()=>runOCRExtract(sourceWrap)},'✨ Extract recipe with AI');
       callout.appendChild(xBtn); sourceWrap.appendChild(callout);
     } else if(currentSource==='instagram') {
       const row=el('div',{class:'form-row'});
@@ -1495,129 +1496,81 @@ async function deleteCustomRecipe(id) {
   state.selected.delete(id); closeModal(); updateShopBar();
 }
 
-// ============ OCR extraction (Tesseract.js — free, no API key) ============
+// ============ Recipe extraction (Gemini Flash vision) ============
 
 async function runOCRExtract(sourceWrap) {
   if (!addRecipeImages.length) { alert('Pick a photo first.'); return; }
 
+  const geminiKey = loadGeminiKey();
+  if (!geminiKey) {
+    alert('Please add your Gemini API key in Settings first.\n\nGet a free key at aistudio.google.com');
+    return;
+  }
+
   let status = sourceWrap.querySelector('.extract-status');
   if (status) status.remove();
-  status = el('div', { class: 'extract-status' }, '📷 Reading text from photo… this may take 15–30 seconds.');
+  status = el('div', { class: 'extract-status' }, '✨ Reading recipe with AI… this takes a few seconds.');
   sourceWrap.appendChild(status);
 
   try {
-    // Run Tesseract on all uploaded images and combine the text
-    let fullText = '';
+    // Convert all images to base64 inline_data parts
+    const parts = [];
     for (const file of addRecipeImages) {
-      status.textContent = addRecipeImages.length > 1
-        ? `📷 Reading image ${addRecipeImages.indexOf(file)+1} of ${addRecipeImages.length}…`
-        : '📷 Reading text from photo… this may take 15–30 seconds.';
-      const result = await Tesseract.recognize(file, 'eng', { logger: () => {} });
-      fullText += result.data.text + '\n\n';
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      parts.push({ inline_data: { mime_type: file.type || 'image/jpeg', data: base64 } });
     }
 
-    fullText = fullText.trim();
-    if (!fullText) throw new Error('No text found in the photo. Try a clearer, well-lit image.');
+    parts.push({ text: `Extract the recipe from this image and return ONLY a JSON object with these exact fields (no markdown, no explanation, no code fences):
+{
+  "name": "Recipe name",
+  "desc": "Brief 1-2 sentence description",
+  "cuisine": "e.g. Italian, Asian, British",
+  "protein": "e.g. chicken, fish, vegetarian",
+  "timeMinutes": 30,
+  "baseServings": 4,
+  "calories": "486 kcal",
+  "allergens": "e.g. gluten, dairy, nuts",
+  "pantry": "pantry staples needed",
+  "ingredients": [["ingredient name", "quantity e.g. 200g"], ["next ingredient", "qty"]],
+  "method": ["Step 1 text", "Step 2 text"]
+}
+Use null for any fields not visible. Return ONLY the JSON object.` });
 
-    // Parse the raw OCR text into recipe fields
-    const parsed = parseOCRText(fullText);
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts }] })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `Gemini API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // Strip markdown code fences if the model adds them anyway
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
+    const parsed = JSON.parse(text);
     fillFormFromExtract(parsed);
 
-    // Show the raw OCR text in a collapsible so user can check it
     status.className = 'extract-status success';
-    status.innerHTML = '✓ Text read successfully. Review and edit the fields below, then click Save recipe.';
-
-    // Append a collapsible showing the raw text
-    const rawWrap = el('div', { style: 'margin-top:8px' });
-    const toggle = el('button', {
-      class: 'btn ghost small', type: 'button', style: 'font-size:12px; padding:4px 8px;'
-    }, 'Show raw text ▾');
-    const rawBox = el('pre', {
-      style: 'display:none;white-space:pre-wrap;word-break:break-word;font-size:11px;background:#F9FAFB;border:1px solid var(--border);border-radius:6px;padding:10px;margin-top:6px;max-height:200px;overflow-y:auto;'
-    }, fullText);
-    toggle.onclick = () => {
-      const open = rawBox.style.display !== 'none';
-      rawBox.style.display = open ? 'none' : 'block';
-      toggle.textContent = open ? 'Show raw text ▾' : 'Hide raw text ▴';
-    };
-    rawWrap.appendChild(toggle);
-    rawWrap.appendChild(rawBox);
-    status.appendChild(rawWrap);
+    status.textContent = '✓ Recipe extracted! Review the fields below and click Save recipe.';
 
   } catch (e) {
     console.error(e);
     status.className = 'extract-status error';
-    status.textContent = 'Could not read photo: ' + e.message;
+    status.textContent = 'Could not extract recipe: ' + e.message;
   }
-}
-
-function parseOCRText(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-
-  // ── Recipe name: first non-trivial line (longer than 4 chars, not all caps short label) ──
-  const nameLine = lines.find(l => l.length > 4 && !/^(ingredients|method|you need|allergens|serves|kcal)/i.test(l));
-
-  // ── Time: look for patterns like "20-30 min", "35 mins", "50 minutes" ──
-  const timeMatch = text.match(/(\d+)[–\-–]?(\d+)?\s*min(utes?)?/i);
-  const timeMinutes = timeMatch
-    ? (timeMatch[2] ? parseInt(timeMatch[2]) : parseInt(timeMatch[1]))
-    : null;
-  const timeDisplay = timeMatch ? timeMatch[0].replace(/minutes?/i, 'min').trim() : null;
-
-  // ── Calories: look for patterns like "486 kcal" ──
-  const calMatch = text.match(/(\d{3,4})\s*kcal/i);
-  const calories = calMatch ? calMatch[0] : null;
-
-  // ── Ingredients: lines that contain a quantity pattern ──
-  // Quantity patterns: "100g", "2 tbsp", "1 tsp", "30ml", "2 x 65g", "½", numbers at start
-  const qtyPattern = /(\d+[\d.,½¼¾]*\s*(g|ml|kg|l|tbsp?|tsp?|x|×)?|\d*[½¼¾])\b/i;
-  const sectionHeaders = /^(ingredients|method|you need|allergens|serves|nutrition|kcal|per serving|cook time|prep time)/i;
-
-  let inIngredients = false;
-  let inMethod = false;
-  const ingredientLines = [];
-  const methodLines = [];
-
-  for (const line of lines) {
-    if (/^ingredients/i.test(line)) { inIngredients = true; inMethod = false; continue; }
-    if (/^(method|steps?|instructions?|directions?)/i.test(line)) { inMethod = true; inIngredients = false; continue; }
-    if (/^(you need|allergens|nutrition|per serving)/i.test(line)) { inIngredients = false; inMethod = false; continue; }
-
-    if (inMethod) {
-      // Numbered steps like "1." "1)" or just long sentences
-      const cleaned = line.replace(/^\d+[.)]\s*/, '').trim();
-      if (cleaned.length > 20) methodLines.push(cleaned);
-    } else if (inIngredients || (!inMethod && qtyPattern.test(line) && line.length < 80)) {
-      // Looks like an ingredient line
-      // Try to split "salmon fillet 200g" → name + qty
-      const match = line.match(/^(.+?)\s+([\d½¼¾][\d.,½¼¾]*\s*(g|ml|kg|l|tbsp?|tsp?|x|×|pack|bunch|clove|sprig|handful)?[\w\s]*)$/i);
-      if (match) {
-        ingredientLines.push([match[1].trim(), match[2].trim()]);
-      } else {
-        ingredientLines.push([line, '']);
-      }
-    }
-  }
-
-  // ── Method fallback: if no method section found, take long lines (>60 chars) that look like sentences ──
-  if (!methodLines.length) {
-    lines.forEach(l => {
-      if (l.length > 60 && /[a-z]/.test(l) && !qtyPattern.test(l.slice(0,5))) {
-        const cleaned = l.replace(/^\d+[.)]\s*/, '').trim();
-        methodLines.push(cleaned);
-      }
-    });
-  }
-
-  return {
-    name: nameLine || '',
-    timeMinutes,
-    time: timeDisplay,
-    calories,
-    ingredients: ingredientLines,
-    method: methodLines,
-    desc: null, cuisine: null, protein: null, pantry: null, allergens: null
-  };
 }
 
 function fillFormFromExtract(r) {
@@ -1637,9 +1590,22 @@ function openSettings() {
   const c=document.getElementById('modal-content'); c.innerHTML='';
   c.appendChild(el('h1',{},'Settings'));
   c.appendChild(el('div',{class:'meta'},'App settings. Stored locally in your browser only.'));
+
+  // Gemini API key
+  const keyRow = el('div', { class: 'form-row' });
+  keyRow.appendChild(el('label', { for: 'gemini-key-input' }, 'Gemini API key'));
+  const keyInput = el('input', { type: 'password', id: 'gemini-key-input', placeholder: 'AIza…' });
+  keyInput.value = loadGeminiKey();
+  keyRow.appendChild(keyInput);
+  keyRow.appendChild(el('div', { class: 'form-hint' }, 'Free key from aistudio.google.com — used for photo-to-recipe extraction.'));
+  c.appendChild(keyRow);
+
   const actions=el('div',{class:'modal-actions'});
   actions.appendChild(el('button',{class:'btn ghost',type:'button',onclick:closeModal},'Cancel'));
-  actions.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>{closeModal();}},'Done'));
+  actions.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>{
+    saveGeminiKey(keyInput.value.trim());
+    closeModal();
+  }},'Save'));
   c.appendChild(actions);
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow='hidden';
