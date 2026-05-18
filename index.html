@@ -1244,6 +1244,17 @@ function openRecipe(r) {
 
   if (isOwner) {
     const actions=el('div',{class:'modal-actions'});
+
+    // Visibility toggle — only for Firestore recipes (localStorage recipes are always private)
+    if (r.firestoreId) {
+      const visBtn = el('button', {
+        class: 'btn', type: 'button',
+        style: 'margin-right:auto',
+        onclick: () => toggleRecipeVisibility(r)
+      }, r.isPublic ? '🔒 Make private' : '🌍 Make public');
+      actions.appendChild(visBtn);
+    }
+
     actions.appendChild(el('button',{class:'btn danger',type:'button',onclick:()=>deleteCustomRecipe(r.id)},'Delete this recipe'));
     c.appendChild(actions);
   }
@@ -1452,6 +1463,18 @@ async function submitNewRecipe(sourceType) {
     try { saveCustom(customRecipes); }
     catch(e) { alert("Couldn't save — probably too much data (large photo). Try a smaller image."); customRecipes.pop(); return; }
     closeModal(); renderFilters(); renderGrid();
+  }
+}
+
+async function toggleRecipeVisibility(r) {
+  if (!r.firestoreId) return;
+  const newVisibility = !r.isPublic;
+  try {
+    await firebaseDb.collection('recipes').doc(r.firestoreId).update({ isPublic: newVisibility });
+    // Listeners will re-categorise the recipe automatically; close and reopen to refresh modal
+    closeModal();
+  } catch(e) {
+    alert('Failed to update visibility: ' + e.message);
   }
 }
 
