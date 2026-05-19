@@ -30,6 +30,9 @@
   .header-actions {
     display: flex; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center;
   }
+  .servings-row {
+    display: flex; justify-content: center; margin-top: 10px;
+  }
 
   /* Basket button in header */
   .basket-header-btn {
@@ -450,33 +453,33 @@
     <h1 id="app-title">Dans La Cuisine</h1>
     <p id="header-sub">Click any card to open the full recipe.</p>
     <div class="header-actions">
+      <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
+      <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
+        🛒<span class="basket-badge" id="basket-count"></span>
+      </button>
+    </div>
+    <div class="servings-row">
       <div class="servings-control">
         <span class="label">Serves</span>
         <button class="servings-btn" type="button" id="servings-minus" aria-label="Decrease servings">−</button>
         <span class="value" id="servings-value">5</span>
         <button class="servings-btn" type="button" id="servings-plus" aria-label="Increase servings">+</button>
       </div>
-      <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
-      <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
-        🛒<span class="basket-badge" id="basket-count"></span>
-      </button>
     </div>
 
-    <!-- User area — top right of header -->
+    <!-- User icon — always visible top-right, dropdown adapts to auth state -->
     <div class="user-area">
-      <!-- Shown when NOT signed in -->
-      <button class="btn" id="login-btn" type="button" style="display:none" onclick="openAuthModal('signin')">Sign in</button>
-
-      <!-- Shown when signed in -->
-      <button class="user-menu" id="user-menu" type="button" onclick="toggleUserDropdown()">
+      <button class="user-menu" id="user-menu" type="button" style="display:inline-flex" onclick="toggleUserDropdown()">
         <div class="user-avatar" id="user-avatar">?</div>
         <span class="user-caret">▾</span>
         <div class="user-dropdown" id="user-dropdown">
-          <div class="dd-name" id="user-name-display"></div>
-          <div class="dd-email" id="user-email-display"></div>
-          <div class="dd-divider"></div>
+          <div class="dd-name" id="user-name-display" style="display:none"></div>
+          <div class="dd-email" id="user-email-display" style="display:none"></div>
+          <div class="dd-divider" id="dd-auth-divider" style="display:none"></div>
+          <button id="dd-signin-btn" type="button" style="display:none" onclick="event.stopPropagation();closeUserDropdown();openAuthModal('signin')">Sign in</button>
+          <div class="dd-divider" id="dd-signin-divider" style="display:none"></div>
           <button type="button" onclick="event.stopPropagation();closeUserDropdown();openSettings()">⚙ Settings</button>
-          <button type="button" class="danger" onclick="event.stopPropagation();doSignOut()">Sign out</button>
+          <button id="dd-signout-btn" type="button" class="danger" style="display:none" onclick="event.stopPropagation();doSignOut()">Sign out</button>
         </div>
       </button>
     </div>
@@ -567,25 +570,32 @@ let publicUnsubscribe  = null;
 let privateUnsubscribe = null;
 
 function updateAuthUI() {
-  const loginBtn    = document.getElementById('login-btn');
-  const userMenu    = document.getElementById('user-menu');
-  const userAvatar  = document.getElementById('user-avatar');
-  const nameEl      = document.getElementById('user-name-display');
-  const emailEl     = document.getElementById('user-email-display');
-  const footerEl    = document.getElementById('footer-text');
+  const userAvatar       = document.getElementById('user-avatar');
+  const nameEl           = document.getElementById('user-name-display');
+  const emailEl          = document.getElementById('user-email-display');
+  const authDivider      = document.getElementById('dd-auth-divider');
+  const signinBtn        = document.getElementById('dd-signin-btn');
+  const signinDivider    = document.getElementById('dd-signin-divider');
+  const signoutBtn       = document.getElementById('dd-signout-btn');
+  const footerEl         = document.getElementById('footer-text');
+
+  const show = (el, v) => { if (el) el.style.display = v ? '' : 'none'; };
 
   if (currentUser) {
-    loginBtn.style.display = 'none';
-    userMenu.style.display = 'inline-flex';
-    const firstName = loadFirstName();
+    const firstName   = loadFirstName();
     const displayName = firstName || currentUser.displayName || currentUser.email.split('@')[0];
     userAvatar.textContent = displayName.charAt(0).toUpperCase();
     if (nameEl)  nameEl.textContent  = displayName;
     if (emailEl) emailEl.textContent = currentUser.email;
+    show(nameEl, true); show(emailEl, true);
+    show(authDivider, true); show(signinBtn, false); show(signinDivider, false);
+    show(signoutBtn, true);
     if (footerEl) footerEl.textContent = 'Signed in as ' + currentUser.email + '. New recipes save to the cloud.';
   } else {
-    loginBtn.style.display = 'inline-flex';
-    userMenu.style.display = 'none';
+    userAvatar.textContent = '?';
+    show(nameEl, false); show(emailEl, false);
+    show(authDivider, false); show(signinBtn, true); show(signinDivider, true);
+    show(signoutBtn, false);
     if (footerEl) footerEl.textContent = 'Recipes you add are saved in your browser. Sign in to save to the cloud and share with others.';
   }
   updateTitle();
@@ -610,10 +620,13 @@ if (FIREBASE_ENABLED) {
   });
 }
 
-// Show login button once we know Firebase status (hide it if unconfigured)
+// If Firebase isn't configured, hide the sign-in dropdown item
 window.addEventListener('DOMContentLoaded', function() {
   if (!FIREBASE_ENABLED) {
-    document.getElementById('login-btn').style.display = 'none';
+    const btn = document.getElementById('dd-signin-btn');
+    const div = document.getElementById('dd-signin-divider');
+    if (btn) btn.style.display = 'none';
+    if (div) div.style.display = 'none';
   }
 });
 
@@ -1633,7 +1646,16 @@ function openSettings() {
   state.openRecipeId=null; state.shoppingListOpen=false;
   const c=document.getElementById('modal-content'); c.innerHTML='';
   c.appendChild(el('h1',{},'Settings'));
-  c.appendChild(el('div',{class:'meta'},'App settings. Stored locally in your browser only.'));
+  c.appendChild(el('div',{class:'meta'},'Stored locally in your browser only.'));
+
+  // Your name
+  const nameRow = el('div', { class: 'form-row' });
+  nameRow.appendChild(el('label', { for: 'settings-name-input' }, 'Your name'));
+  const nameInput = el('input', { type: 'text', id: 'settings-name-input', placeholder: 'e.g. Giles' });
+  nameInput.value = loadFirstName();
+  nameRow.appendChild(nameInput);
+  nameRow.appendChild(el('div', { class: 'form-hint' }, 'Shown in the title: "[Name] Dans La Cuisine"'));
+  c.appendChild(nameRow);
 
   // Gemini API key
   const keyRow = el('div', { class: 'form-row' });
@@ -1647,7 +1669,11 @@ function openSettings() {
   const actions=el('div',{class:'modal-actions'});
   actions.appendChild(el('button',{class:'btn ghost',type:'button',onclick:closeModal},'Cancel'));
   actions.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>{
+    const newName = nameInput.value.trim();
+    saveFirstName(newName);
     saveGeminiKey(keyInput.value.trim());
+    updateTitle();
+    updateAuthUI();
     closeModal();
   }},'Save'));
   c.appendChild(actions);
