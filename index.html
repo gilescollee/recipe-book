@@ -37,9 +37,6 @@
   .header-brand img {
     height: 160px; width: auto; object-fit: contain; display: block; margin-bottom: 10px;
   }
-  .header-controls {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  }
 
   /* Basket button in header */
   .basket-header-btn {
@@ -167,7 +164,10 @@
   }
 
   /* View tabs */
-  .view-tabs { display: flex; gap: 6px; margin-bottom: 20px; justify-content: center; }
+  .view-tabs { display: flex; gap: 6px; margin-bottom: 20px; justify-content: flex-end; }
+
+  /* Servings + basket row below filters */
+  .recipe-controls { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
   .view-tab {
     background: #fff; border: 1px solid var(--border); padding: 10px 22px;
     border-radius: 999px; cursor: pointer; font-size: 14px; font-family: inherit;
@@ -484,17 +484,6 @@
         </div>
       </div>
     </div>
-    <div class="header-controls">
-      <div class="servings-control">
-        <span class="label">Serves</span>
-        <button class="servings-btn" type="button" id="servings-minus" aria-label="Decrease servings">−</button>
-        <span class="value" id="servings-value">5</span>
-        <button class="servings-btn" type="button" id="servings-plus" aria-label="Increase servings">+</button>
-      </div>
-      <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
-        🛒<span class="basket-badge" id="basket-count"></span>
-      </button>
-    </div>
   </header>
 
   <div class="view-tabs">
@@ -524,6 +513,17 @@
         <span class="filter-count" id="filter-count"></span>
         <button class="filter-clear" id="filter-clear" type="button">Clear filters</button>
       </div>
+    </div>
+    <div class="recipe-controls">
+      <div class="servings-control">
+        <span class="label">Serves</span>
+        <button class="servings-btn" type="button" id="servings-minus" aria-label="Decrease servings">−</button>
+        <span class="value" id="servings-value">5</span>
+        <button class="servings-btn" type="button" id="servings-plus" aria-label="Increase servings">+</button>
+      </div>
+      <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
+        🛒<span class="basket-badge" id="basket-count"></span>
+      </button>
     </div>
     <div id="grid-container"></div>
   </div>
