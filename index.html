@@ -1476,7 +1476,7 @@ function openEditRecipe(r) {
     fi.addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
-      reader.onload = ev => { addDisplayPhotoData = ev.target.result; };
+      reader.onload = async ev => { addDisplayPhotoData = await compressImage(ev.target.result); };
       reader.readAsDataURL(file);
     });
     replaceRow.appendChild(fi);
@@ -1489,7 +1489,7 @@ function openEditRecipe(r) {
     fi.addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
-      reader.onload = ev => { addDisplayPhotoData = ev.target.result; };
+      reader.onload = async ev => { addDisplayPhotoData = await compressImage(ev.target.result); };
       reader.readAsDataURL(file);
     });
     photoRow.appendChild(fi);
@@ -1609,6 +1609,23 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal();clos
 
 let addRecipeImages=[], addRecipeImageData=null, addDisplayPhotoData=null;
 
+// Compress an image to JPEG ≤ 800px wide at 75% quality — keeps Firestore docs under 1 MB
+function compressImage(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.src = dataUrl;
+  });
+}
+
 function openAddRecipe() {
   state.openRecipeId=null; state.shoppingListOpen=false;
   addRecipeImages=[]; addRecipeImageData=null; addDisplayPhotoData=null;
@@ -1700,11 +1717,11 @@ function openAddRecipe() {
     row.appendChild(el('label',{},'🖼 Display photo (optional)'));
     const fi=el('input',{type:'file',accept:'image/*'});
     const prev=el('div',{class:'image-preview'});
-    fi.addEventListener('change',e=>{
+    fi.addEventListener('change',async e=>{
       const file=e.target.files[0]; if(!file) return;
       const reader=new FileReader();
-      reader.onload=ev=>{
-        addDisplayPhotoData=ev.target.result;
+      reader.onload=async ev=>{
+        addDisplayPhotoData = await compressImage(ev.target.result);
         prev.innerHTML='';
         prev.appendChild(el('img',{src:addDisplayPhotoData,alt:'Display photo',style:'max-width:160px;max-height:120px;border-radius:8px;object-fit:cover;border:1px solid var(--border)'}));
       };
@@ -1808,7 +1825,7 @@ async function submitNewRecipe(sourceType) {
 
     // Build clean Firestore document — omit large image blobs and null values
     const fsDoc={};
-    ['id','name','source','custom','cuisine','protein','timeMinutes','time','baseServings','desc','tags','pantry','allergens','method','link','linkType'].forEach(k=>{if(newRecipe[k]!=null)fsDoc[k]=newRecipe[k];});
+    ['id','name','source','custom','cuisine','protein','timeMinutes','time','baseServings','desc','tags','pantry','allergens','method','link','linkType','image'].forEach(k=>{if(newRecipe[k]!=null)fsDoc[k]=newRecipe[k];});
     // Firestore bans nested arrays — store ingredients as objects
     if(newRecipe.ingredients) fsDoc.ingredients = ingredientsToFs(newRecipe.ingredients);
     fsDoc.userId=currentUser.uid;
