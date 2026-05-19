@@ -213,7 +213,7 @@
   .overlay.open { display: flex; }
   .modal {
     background: #fff; border-radius: 16px; max-width: 820px; width: 100%;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.25); position: relative; padding: 40px 44px 48px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25); position: relative; padding: 40px 44px 100px;
   }
   .modal-close {
     position: absolute; top: 16px; right: 16px; background: #F3F4F6; border: 0;
@@ -471,12 +471,111 @@
 
   @media (max-width: 640px) {
     body { padding: 24px 12px 100px; }
-    .modal { padding: 32px 20px 36px; }
+    .modal { padding: 32px 20px 100px; }
     .auth-modal { padding: 32px 20px 28px; }
     .ingredients { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
     .header-top { flex-wrap: wrap; }
     .header-controls { gap: 8px; }
+  }
+
+  /* Recipe action bar (sticky bottom, shown when recipe modal is open) */
+  .recipe-action-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 2px solid var(--border);
+    padding: 14px 20px; display: none; gap: 12px;
+    justify-content: space-between; z-index: 60;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  }
+  .recipe-action-bar.show { display: flex; }
+  .action-btn {
+    flex: 1; padding: 14px 20px; border-radius: 12px;
+    font-size: 16px; font-weight: 600; cursor: pointer;
+    border: 2px solid var(--border); font-family: inherit;
+    transition: all 0.15s;
+  }
+  .action-btn.basket { background: #fff; color: var(--ink); }
+  .action-btn.basket:hover { border-color: var(--accent); }
+  .action-btn.basket.in-basket { background: var(--secondary); color: #fff; border-color: var(--secondary); }
+  .action-btn.cook-btn { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .action-btn.cook-btn:hover { background: #C00B23; border-color: #C00B23; }
+
+  /* Cook mode carousel */
+  .cook-overlay {
+    position: fixed; inset: 0; background: var(--warm-cream);
+    z-index: 200; display: none; flex-direction: column;
+  }
+  .cook-overlay.open { display: flex; }
+  .cook-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    background: #fff; flex-shrink: 0;
+  }
+  .cook-title { font-size: 17px; font-weight: 700; flex: 1; text-align: center; margin: 0 12px; line-height: 1.3; }
+  .cook-close {
+    background: #F3F4F6; border: 0; border-radius: 50%;
+    width: 36px; height: 36px; font-size: 22px; cursor: pointer;
+    color: #4B5563; line-height: 1; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cook-close:hover { background: #E5E7EB; }
+  .cook-carousel {
+    flex: 1; display: flex; overflow-x: auto;
+    scroll-snap-type: x mandatory; scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cook-carousel::-webkit-scrollbar { display: none; }
+  .cook-card {
+    min-width: 100%; scroll-snap-align: start;
+    padding: 32px 28px 28px; display: flex; flex-direction: column;
+    gap: 16px; overflow-y: auto;
+  }
+  .cook-card-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--accent);
+  }
+  .cook-card h2 { font-size: 24px; font-weight: 700; margin: 0 0 8px; }
+  .cook-step-num {
+    font-size: 72px; font-weight: 700; color: var(--soft-pink);
+    line-height: 1; margin-bottom: 4px;
+  }
+  .cook-step-text {
+    font-size: 22px; line-height: 1.6; color: var(--ink);
+  }
+  .cook-ingredients-list { list-style: none; margin: 0; padding: 0; }
+  .cook-ingredients-list li {
+    font-size: 19px; display: flex; justify-content: space-between;
+    align-items: baseline; padding: 12px 0;
+    border-bottom: 1px solid var(--border); gap: 16px;
+  }
+  .cook-ingredients-list li .qty { color: var(--muted); font-size: 17px; white-space: nowrap; }
+  .cook-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-top: 1px solid var(--border);
+    background: #fff; flex-shrink: 0;
+  }
+  .cook-nav-btn {
+    background: #fff; border: 2px solid var(--border); border-radius: 10px;
+    padding: 12px 24px; font-size: 16px; cursor: pointer;
+    font-family: inherit; font-weight: 600; transition: all 0.15s;
+    color: var(--ink);
+  }
+  .cook-nav-btn:hover:not(:disabled) { border-color: var(--secondary); }
+  .cook-nav-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cook-nav-btn.primary:hover { background: #C00B23; border-color: #C00B23; }
+  .cook-nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .cook-progress { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .cook-dots { display: flex; gap: 6px; align-items: center; }
+  .cook-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); transition: background 0.2s;
+  }
+  .cook-dot.active { background: var(--accent); }
+  @media (max-width: 640px) {
+    .action-btn { font-size: 15px; padding: 12px 14px; }
+    .cook-step-text { font-size: 20px; }
+    .cook-card { padding: 24px 20px; }
+    .cook-ingredients-list li { font-size: 17px; }
   }
 </style>
 
@@ -550,7 +649,7 @@
         <button class="servings-btn" type="button" id="servings-plus" aria-label="Increase servings">+</button>
       </div>
       <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
-        🛒<span class="basket-badge" id="basket-count"></span>
+        View basket<span class="basket-badge" id="basket-count"></span>
       </button>
     </div>
     <div id="grid-container"></div>
@@ -597,6 +696,27 @@
   <div class="auth-modal">
     <button class="auth-close" onclick="closeAuthModal()" aria-label="Close">&times;</button>
     <div id="auth-modal-content"></div>
+  </div>
+</div>
+
+<!-- Sticky action bar shown when a recipe is open -->
+<div class="recipe-action-bar" id="recipe-action-bar">
+  <button class="action-btn basket" id="action-basket-btn" type="button"></button>
+  <button class="action-btn cook-btn" type="button" id="action-cook-btn">Cook</button>
+</div>
+
+<!-- Cook mode carousel overlay -->
+<div class="cook-overlay" id="cook-overlay">
+  <div class="cook-header">
+    <button class="cook-close" onclick="closeCookMode()" aria-label="Close">&times;</button>
+    <div class="cook-title" id="cook-title"></div>
+    <div style="width:36px"></div>
+  </div>
+  <div class="cook-carousel" id="cook-carousel"></div>
+  <div class="cook-nav">
+    <button class="cook-nav-btn" id="cook-prev" type="button" onclick="cookNav(-1)">← Back</button>
+    <div class="cook-dots" id="cook-dots"></div>
+    <button class="cook-nav-btn primary" id="cook-next" type="button" onclick="cookNav(1)">Next →</button>
   </div>
 </div>
 
@@ -1194,7 +1314,7 @@ function renderCard(r) {
     type: 'button',
     title: inBasket ? 'Remove from basket' : 'Add to shopping basket',
     onclick: (e) => { e.stopPropagation(); toggleBasket(r.id); }
-  }, '🛒');
+  }, '🧺');
   card.appendChild(basketBtn);
 
   const cardPhoto = r.image || r.photoUrl;
@@ -1357,6 +1477,8 @@ function buildShoppingList() {
 
 function openShoppingList() {
   state.shoppingListOpen=true; state.openRecipeId=null;
+  const bar = document.getElementById('recipe-action-bar');
+  if (bar) bar.classList.remove('show');
   const {items,groups,selectedRecipes}=buildShoppingList();
   const c=document.getElementById('modal-content'); c.innerHTML='';
   c.appendChild(el('h1',{},'Shopping list'));
@@ -1455,13 +1577,175 @@ function openRecipe(r) {
 
   document.getElementById('overlay').classList.add('open');
   document.body.style.overflow='hidden';
+
+  // Show sticky action bar (not for shopping list view)
+  showRecipeActionBar(r);
+}
+
+function showRecipeActionBar(r) {
+  const bar = document.getElementById('recipe-action-bar');
+  const basketBtn = document.getElementById('action-basket-btn');
+  const cookBtn = document.getElementById('action-cook-btn');
+  if (!bar || !basketBtn) return;
+  const inBasket = state.selected.has(r.id);
+  basketBtn.textContent = inBasket ? '🧺 In basket' : '🧺 Add to basket';
+  basketBtn.className = 'action-btn basket' + (inBasket ? ' in-basket' : '');
+  basketBtn.onclick = () => {
+    toggleBasket(r.id);
+    const nowIn = state.selected.has(r.id);
+    basketBtn.textContent = nowIn ? '🧺 In basket' : '🧺 Add to basket';
+    basketBtn.className = 'action-btn basket' + (nowIn ? ' in-basket' : '');
+  };
+  if (cookBtn) cookBtn.onclick = () => openCookMode(r);
+  bar.classList.add('show');
 }
 
 function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.body.style.overflow='';
   state.openRecipeId=null; state.shoppingListOpen=false;
+  const bar = document.getElementById('recipe-action-bar');
+  if (bar) bar.classList.remove('show');
 }
+
+// ============ Cook mode ============
+
+let _cookCurrentIndex = 0;
+let _cookCards = [];
+
+function openCookMode(r) {
+  const factor = scaleFactor(r);
+  _cookCurrentIndex = 0;
+  _cookCards = [];
+
+  // Card 0: Ingredients
+  _cookCards.push({ type: 'ingredients', recipe: r, factor });
+
+  // Cards 1+: Each method step
+  (r.method || []).forEach((step, i) => {
+    _cookCards.push({ type: 'step', stepNum: i + 1, totalSteps: (r.method||[]).length, text: scaleMethodText(step, factor) });
+  });
+
+  // Build carousel
+  const carousel = document.getElementById('cook-carousel');
+  carousel.innerHTML = '';
+  _cookCards.forEach((card, idx) => {
+    const div = document.createElement('div');
+    div.className = 'cook-card';
+    if (card.type === 'ingredients') {
+      div.appendChild(Object.assign(document.createElement('div'), { className: 'cook-card-label', textContent: 'Ingredients' }));
+      const h2 = document.createElement('h2');
+      h2.textContent = r.name;
+      div.appendChild(h2);
+      const metaLine = [r.time, r.calories, 'Serves ' + state.servings].filter(Boolean).join(' · ');
+      if (metaLine) {
+        const meta = document.createElement('div');
+        meta.style.cssText = 'font-size:15px;color:var(--muted);margin-bottom:8px';
+        meta.textContent = metaLine;
+        div.appendChild(meta);
+      }
+      const ul = document.createElement('ul');
+      ul.className = 'cook-ingredients-list';
+      (r.ingredients || []).forEach(([item, qty]) => {
+        const li = document.createElement('li');
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = item;
+        const qtySpan = document.createElement('span');
+        qtySpan.className = 'qty';
+        qtySpan.textContent = scaleQty(qty, factor) || '—';
+        li.appendChild(nameSpan);
+        li.appendChild(qtySpan);
+        ul.appendChild(li);
+      });
+      div.appendChild(ul);
+    } else {
+      const numEl = document.createElement('div');
+      numEl.className = 'cook-step-num';
+      numEl.textContent = String(card.stepNum).padStart(2, '0');
+      div.appendChild(numEl);
+      const label = document.createElement('div');
+      label.className = 'cook-card-label';
+      label.textContent = 'Step ' + card.stepNum + ' of ' + card.totalSteps;
+      div.appendChild(label);
+      const text = document.createElement('div');
+      text.className = 'cook-step-text';
+      text.textContent = card.text;
+      div.appendChild(text);
+    }
+    carousel.appendChild(div);
+  });
+
+  // Title
+  document.getElementById('cook-title').textContent = r.name;
+
+  // Build dots
+  buildCookDots();
+  updateCookNav();
+
+  // Scroll to start
+  carousel.scrollLeft = 0;
+
+  document.getElementById('cook-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCookMode() {
+  document.getElementById('cook-overlay').classList.remove('open');
+  document.body.style.overflow = 'hidden'; // recipe modal is still open underneath
+}
+
+function cookNav(dir) {
+  const carousel = document.getElementById('cook-carousel');
+  _cookCurrentIndex = Math.max(0, Math.min(_cookCards.length - 1, _cookCurrentIndex + dir));
+  const cardWidth = carousel.offsetWidth;
+  carousel.scrollTo({ left: _cookCurrentIndex * cardWidth, behavior: 'smooth' });
+  buildCookDots();
+  updateCookNav();
+}
+
+function buildCookDots() {
+  const dotsEl = document.getElementById('cook-dots');
+  dotsEl.innerHTML = '';
+  const max = Math.min(_cookCards.length, 12); // cap dots at 12
+  if (_cookCards.length <= 1) return;
+  for (let i = 0; i < max; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'cook-dot' + (i === _cookCurrentIndex ? ' active' : '');
+    dot.onclick = () => { _cookCurrentIndex = i; cookNav(0); };
+    dot.style.cursor = 'pointer';
+    dotsEl.appendChild(dot);
+  }
+}
+
+function updateCookNav() {
+  const prev = document.getElementById('cook-prev');
+  const next = document.getElementById('cook-next');
+  if (prev) prev.disabled = _cookCurrentIndex === 0;
+  if (next) {
+    const isLast = _cookCurrentIndex === _cookCards.length - 1;
+    next.textContent = isLast ? 'Done ✓' : 'Next →';
+    next.disabled = false;
+    next.onclick = isLast ? closeCookMode : () => cookNav(1);
+  }
+}
+
+// Sync carousel scroll position with _cookCurrentIndex (for touch/mouse swipe)
+document.addEventListener('DOMContentLoaded', function() {
+  const carousel = document.getElementById('cook-carousel');
+  if (!carousel) return;
+  let scrollTimer;
+  carousel.addEventListener('scroll', () => {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const idx = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+      if (idx !== _cookCurrentIndex) {
+        _cookCurrentIndex = idx;
+        buildCookDots();
+        updateCookNav();
+      }
+    }, 80);
+  });
+});
 
 function openEditRecipe(r) {
   state.openRecipeId = null; state.shoppingListOpen = false;
@@ -1610,7 +1894,15 @@ async function submitEditRecipe(original) {
   }
 }
 
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal();closeAuthModal();} });
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const cookOpen = document.getElementById('cook-overlay')?.classList.contains('open');
+    if(cookOpen){ closeCookMode(); return; }
+    closeModal(); closeAuthModal();
+  }
+  if(e.key==='ArrowRight'){ const cookOpen = document.getElementById('cook-overlay')?.classList.contains('open'); if(cookOpen) cookNav(1); }
+  if(e.key==='ArrowLeft') { const cookOpen = document.getElementById('cook-overlay')?.classList.contains('open'); if(cookOpen) cookNav(-1); }
+});
 
 // ============ Add recipe ============
 
