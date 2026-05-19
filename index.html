@@ -34,6 +34,12 @@
   .header-right {
     display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-top: 4px;
   }
+  .header-image-wrap {
+    display: flex; justify-content: center; margin: 8px 0 16px;
+  }
+  .header-image-wrap img {
+    height: 160px; width: auto; object-fit: contain;
+  }
   .header-controls {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
@@ -474,6 +480,9 @@
           </div>
         </button>
       </div>
+    </div>
+    <div class="header-image-wrap">
+      <img src="header.jpg" alt="Dans La Cuisine">
     </div>
     <div class="header-controls">
       <div class="servings-control">
