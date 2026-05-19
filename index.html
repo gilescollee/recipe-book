@@ -23,15 +23,19 @@
     padding: 48px 24px 120px;
   }
   .wrap { max-width: 1200px; margin: 0 auto; }
-  header { margin-bottom: 24px; text-align: center; position: relative; padding-top: 8px; }
-  header h1 { margin: 0 0 8px; font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
-  header p { margin: 0; color: var(--muted); font-size: 16px; }
-
-  .header-actions {
-    display: flex; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center;
+  header { margin-bottom: 24px; }
+  .header-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; margin-bottom: 14px;
   }
-  .servings-row {
-    display: flex; justify-content: center; margin-top: 10px;
+  .header-brand { flex: 1; min-width: 0; }
+  header h1 { margin: 0 0 4px; font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); font-size: 16px; }
+  .header-right {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-top: 4px;
+  }
+  .header-controls {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   }
 
   /* Basket button in header */
@@ -59,10 +63,6 @@
   .card-basket-btn:hover { border-color: var(--accent); background: var(--soft-pink); }
   .card-basket-btn.in-basket { background: var(--accent); border-color: var(--accent); }
 
-  /* User area — pinned top-right of header */
-  .user-area {
-    position: absolute; top: 0; right: 0; display: flex; align-items: center;
-  }
   .servings-control {
     display: inline-flex; align-items: center; gap: 4px;
     background: #fff; border: 1px solid var(--border); border-radius: 8px;
@@ -432,13 +432,16 @@
   .signin-nudge a { color: var(--accent); font-weight: 600; text-decoration: none; }
   .signin-nudge a:hover { text-decoration: underline; }
 
+  .dd-hidden { display: none !important; }
+
   @media (max-width: 640px) {
     body { padding: 24px 12px 100px; }
     .modal { padding: 32px 20px 36px; }
     .auth-modal { padding: 32px 20px 28px; }
     .ingredients { grid-template-columns: 1fr; }
     .form-grid { grid-template-columns: 1fr; }
-    .user-area { top: 4px; }
+    .header-top { flex-wrap: wrap; }
+    .header-controls { gap: 8px; }
   }
 </style>
 
@@ -450,36 +453,37 @@
 <body>
 <div class="wrap">
   <header>
-    <h1 id="app-title">Dans La Cuisine</h1>
-    <p id="header-sub">Click any card to open the full recipe.</p>
-    <div class="header-actions">
-      <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
-      <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
-        🛒<span class="basket-badge" id="basket-count"></span>
-      </button>
+    <div class="header-top">
+      <div class="header-brand">
+        <h1 id="app-title">Dans La Cuisine</h1>
+        <p id="header-sub">Click any card to open the full recipe.</p>
+      </div>
+      <div class="header-right">
+        <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
+        <!-- User icon inline in header-right -->
+        <button class="user-menu" id="user-menu" type="button" style="display:inline-flex" onclick="toggleUserDropdown()">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <span class="user-caret">▾</span>
+          <div class="user-dropdown" id="user-dropdown">
+            <div class="dd-name dd-hidden" id="user-name-display"></div>
+            <div class="dd-email dd-hidden" id="user-email-display"></div>
+            <div class="dd-divider dd-hidden" id="dd-auth-divider"></div>
+            <button id="dd-signin-btn" class="dd-hidden" type="button" onclick="event.stopPropagation();closeUserDropdown();openAuthModal('signin')">Sign in</button>
+            <button id="dd-settings-btn" class="dd-hidden" type="button" onclick="event.stopPropagation();closeUserDropdown();openSettings()">⚙ Settings</button>
+            <button id="dd-signout-btn" class="dd-hidden danger" type="button" onclick="event.stopPropagation();doSignOut()">Sign out</button>
+          </div>
+        </button>
+      </div>
     </div>
-    <div class="servings-row">
+    <div class="header-controls">
       <div class="servings-control">
         <span class="label">Serves</span>
         <button class="servings-btn" type="button" id="servings-minus" aria-label="Decrease servings">−</button>
         <span class="value" id="servings-value">5</span>
         <button class="servings-btn" type="button" id="servings-plus" aria-label="Increase servings">+</button>
       </div>
-    </div>
-
-    <!-- User icon — always visible top-right, dropdown adapts to auth state -->
-    <div class="user-area">
-      <button class="user-menu" id="user-menu" type="button" style="display:inline-flex" onclick="toggleUserDropdown()">
-        <div class="user-avatar" id="user-avatar">?</div>
-        <span class="user-caret">▾</span>
-        <div class="user-dropdown" id="user-dropdown">
-          <div class="dd-name" id="user-name-display" style="display:none"></div>
-          <div class="dd-email" id="user-email-display" style="display:none"></div>
-          <div class="dd-divider" id="dd-auth-divider" style="display:none"></div>
-          <button id="dd-signin-btn" type="button" style="display:none" onclick="event.stopPropagation();closeUserDropdown();openAuthModal('signin')">Sign in</button>
-          <button id="dd-settings-btn" type="button" style="display:none" onclick="event.stopPropagation();closeUserDropdown();openSettings()">⚙ Settings</button>
-          <button id="dd-signout-btn" type="button" class="danger" style="display:none" onclick="event.stopPropagation();doSignOut()">Sign out</button>
-        </div>
+      <button class="basket-header-btn" id="basket-header-btn" type="button" title="View shopping list" onclick="openShoppingList()">
+        🛒<span class="basket-badge" id="basket-count"></span>
       </button>
     </div>
   </header>
@@ -491,6 +495,10 @@
 
   <div id="recipes-view">
     <div class="filters">
+      <div class="filter-group" id="filter-source-group">
+        <div class="filter-label">Show</div>
+        <div class="filter-pills" id="filter-source"></div>
+      </div>
       <div class="filter-group">
         <div class="filter-label">Protein</div>
         <div class="filter-pills" id="filter-protein"></div>
@@ -578,7 +586,7 @@ function updateAuthUI() {
   const signoutBtn       = document.getElementById('dd-signout-btn');
   const footerEl         = document.getElementById('footer-text');
 
-  const show = (el, v) => { if (el) el.style.display = v ? '' : 'none'; };
+  const show = (el, v) => { if (el) el.classList.toggle('dd-hidden', !v); };
 
   if (currentUser) {
     const firstName   = loadFirstName();
@@ -620,13 +628,7 @@ if (FIREBASE_ENABLED) {
   });
 }
 
-// If Firebase isn't configured, hide the sign-in dropdown item
-window.addEventListener('DOMContentLoaded', function() {
-  if (!FIREBASE_ENABLED) {
-    const btn = document.getElementById('dd-signin-btn');
-    if (btn) btn.style.display = 'none';
-  }
-});
+// If Firebase isn't configured, keep sign-in dropdown item hidden (already dd-hidden by default)
 
 // ============ Firestore listeners ============
 
@@ -1020,10 +1022,21 @@ function categorize(name) {
 const state = {
   filters: { protein: new Set(), cuisine: new Set(), time: new Set() },
   selected: new Set(), servings: loadServings(),
-  openRecipeId: null, shoppingListOpen: false
+  openRecipeId: null, shoppingListOpen: false,
+  sourceFilter: 'all'
 };
 
 function matches(r) {
+  if (state.sourceFilter === 'mine') {
+    const isOwn = r.firestoreId
+      ? (currentUser && r.userId === currentUser.uid)
+      : !!r.custom;
+    if (!isOwn) return false;
+  }
+  if (state.sourceFilter === 'community') {
+    if (!r._fsSource || !r.isPublic) return false;
+    if (currentUser && r.userId === currentUser.uid) return false;
+  }
   const { protein, cuisine, time } = state.filters;
   if (protein.size && !protein.has(r.protein)) return false;
   if (cuisine.size && !cuisine.has(r.cuisine)) return false;
@@ -1052,6 +1065,19 @@ function updateServingsDisplay() {
 // ============ Renderers ============
 
 function renderFilters() {
+  const srcEl = document.getElementById('filter-source');
+  if (srcEl) {
+    srcEl.innerHTML = '';
+    const srcOpts = [['all','All recipes'],['mine','My recipes'],['community','Community']];
+    srcOpts.forEach(([val, label]) => {
+      srcEl.appendChild(el('button', {
+        class: 'pill' + (state.sourceFilter === val ? ' active' : ''),
+        type: 'button',
+        onclick: () => { state.sourceFilter = val; renderFilters(); renderGrid(); }
+      }, label));
+    });
+  }
+
   const all      = allRecipes();
   const proteins = [...new Set(all.map(r=>r.protein).filter(Boolean))].sort();
   const cuisines = [...new Set(all.map(r=>r.cuisine).filter(Boolean))].sort();
@@ -1112,7 +1138,14 @@ function renderCard(r) {
     if (currentUser && r.userId === currentUser.uid) {
       tags.appendChild(el('span', { class:'tag custom' }, r.isPublic ? 'Yours · Public' : 'Yours · Private'));
     } else if (r.isPublic) {
-      tags.appendChild(el('span', { class:'tag community' }, 'Community'));
+      // Show creator for community recipes
+      if (r._fsSource === 'public' && (!currentUser || r.userId !== currentUser.uid)) {
+        const creator = r.userDisplayName || (r.userEmail ? r.userEmail.split('@')[0] : null);
+        if (creator) tags.appendChild(el('span', { class:'tag community' }, '👤 ' + creator));
+        else tags.appendChild(el('span', { class:'tag community' }, 'Community'));
+      } else {
+        tags.appendChild(el('span', { class:'tag community' }, 'Community'));
+      }
     }
   } else if (r.custom) {
     tags.appendChild(el('span', { class:'tag custom' }, 'Yours'));
@@ -1332,6 +1365,10 @@ function openRecipe(r) {
       actions.appendChild(visBtn);
     }
 
+    actions.appendChild(el('button', {
+      class: 'btn', type: 'button',
+      onclick: () => { closeModal(); openEditRecipe(r); }
+    }, '✏ Edit recipe'));
     actions.appendChild(el('button',{class:'btn danger',type:'button',onclick:()=>deleteCustomRecipe(r.id)},'Delete this recipe'));
     c.appendChild(actions);
   }
@@ -1344,6 +1381,153 @@ function closeModal() {
   document.getElementById('overlay').classList.remove('open');
   document.body.style.overflow='';
   state.openRecipeId=null; state.shoppingListOpen=false;
+}
+
+function openEditRecipe(r) {
+  state.openRecipeId = null; state.shoppingListOpen = false;
+  addRecipeImages = []; addRecipeImageData = null; addDisplayPhotoData = null;
+
+  const c = document.getElementById('modal-content'); c.innerHTML = '';
+  c.appendChild(el('h1', {}, 'Edit recipe'));
+
+  const sourceWrap = el('div');
+  c.appendChild(sourceWrap);
+  // Show existing photo if any
+  if (r.image || r.photoUrl) {
+    const photoRow = el('div', { class: 'form-row' });
+    photoRow.appendChild(el('label', {}, '🖼 Current photo'));
+    photoRow.appendChild(el('img', { src: r.image || r.photoUrl, alt: r.name, style: 'max-width:200px;max-height:140px;border-radius:8px;object-fit:cover;border:1px solid var(--border);display:block;margin-top:6px' }));
+    const replaceRow = el('div', { style: 'margin-top:8px' });
+    replaceRow.appendChild(el('label', {}, '📁 Replace photo (optional)'));
+    const fi = el('input', { type: 'file', accept: 'image/*' });
+    fi.addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => { addDisplayPhotoData = ev.target.result; };
+      reader.readAsDataURL(file);
+    });
+    replaceRow.appendChild(fi);
+    photoRow.appendChild(replaceRow);
+    sourceWrap.appendChild(photoRow);
+  } else {
+    const photoRow = el('div', { class: 'form-row' });
+    photoRow.appendChild(el('label', {}, '🖼 Add a photo (optional)'));
+    const fi = el('input', { type: 'file', accept: 'image/*' });
+    fi.addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => { addDisplayPhotoData = ev.target.result; };
+      reader.readAsDataURL(file);
+    });
+    photoRow.appendChild(fi);
+    sourceWrap.appendChild(photoRow);
+  }
+
+  // Pre-fill form fields
+  const nameRow = makeFormRow('r-name', 'Recipe name *', 'text', { placeholder: 'e.g. Sticky honey salmon' });
+  c.appendChild(nameRow);
+  document.getElementById('r-name') && (document.getElementById('r-name').value = r.name || '');
+
+  c.appendChild(makeFormRow('r-desc', 'Description (optional)', 'textarea', { placeholder: 'One-line summary.' }));
+  const grid = el('div', { class: 'form-grid' });
+  grid.appendChild(makeFormRow('r-cuisine', 'Cuisine', 'text', { placeholder: 'e.g. Italian' }));
+  grid.appendChild(makeFormRow('r-protein', 'Protein', 'text', { placeholder: 'e.g. Chicken' }));
+  grid.appendChild(makeFormRow('r-time', 'Cook time (minutes)', 'number', { min: '0', placeholder: 'e.g. 30' }));
+  grid.appendChild(makeFormRow('r-base-servings', 'Recipe is written for X servings', 'number', { min: '1', value: '2', placeholder: '2' }));
+  c.appendChild(grid);
+  c.appendChild(makeFormRow('r-ingredients', 'Ingredients (optional)', 'textarea', { placeholder: 'One per line. Use a colon for quantity:\nsalmon fillet : 2' }));
+  c.appendChild(makeFormRow('r-pantry', 'Pantry / "You need" (optional)', 'text', { placeholder: 'e.g. salt, pepper, olive oil' }));
+  c.appendChild(makeFormRow('r-allergens', 'Allergens (optional)', 'text', { placeholder: 'e.g. gluten, dairy' }));
+  c.appendChild(makeFormRow('r-method', 'Method (optional)', 'textarea', { placeholder: 'One step per line.' }));
+
+  // Pre-fill values after DOM elements exist
+  setTimeout(() => {
+    const set = (id, val) => { const e = document.getElementById(id); if (e && val != null) e.value = val; };
+    set('r-name', r.name || '');
+    set('r-desc', r.desc || '');
+    set('r-cuisine', r.cuisine || '');
+    set('r-protein', r.protein || '');
+    if (r.timeMinutes != null) set('r-time', r.timeMinutes);
+    set('r-base-servings', r.baseServings || 2);
+    set('r-pantry', r.pantry || '');
+    set('r-allergens', r.allergens || '');
+    if (Array.isArray(r.ingredients)) set('r-ingredients', r.ingredients.map(p => Array.isArray(p) ? `${p[0]} : ${p[1] || ''}`.trim() : p).join('\n'));
+    if (Array.isArray(r.method)) set('r-method', r.method.join('\n'));
+  }, 0);
+
+  // Visibility toggle for Firestore recipes
+  if (r.firestoreId && currentUser) {
+    const visRow = el('div', { class: 'visibility-row' });
+    const visLbl = el('div', { class: 'visibility-label' });
+    visLbl.appendChild(el('strong', {}, 'Visibility'));
+    visLbl.appendChild(document.createTextNode(' — who can see this recipe'));
+    visRow.appendChild(visLbl);
+    const toggle = el('div', { class: 'visibility-toggle', id: 'r-visibility' });
+    toggle.dataset.value = r.isPublic ? 'public' : 'private';
+    const privBtn = el('button', { class: 'visibility-opt' + (!r.isPublic ? ' active' : ''), type: 'button' }, '🔒 Private');
+    const pubBtn  = el('button', { class: 'visibility-opt' + (r.isPublic  ? ' active' : ''), type: 'button' }, '🌍 Public');
+    privBtn.onclick = () => { toggle.dataset.value = 'private'; privBtn.classList.add('active'); pubBtn.classList.remove('active'); };
+    pubBtn.onclick  = () => { toggle.dataset.value = 'public';  pubBtn.classList.add('active');  privBtn.classList.remove('active'); };
+    toggle.appendChild(privBtn); toggle.appendChild(pubBtn);
+    visRow.appendChild(toggle); c.appendChild(visRow);
+  }
+
+  const actions = el('div', { class: 'modal-actions' });
+  actions.appendChild(el('button', { class: 'btn ghost', type: 'button', onclick: closeModal }, 'Cancel'));
+  actions.appendChild(el('button', { class: 'btn primary', type: 'button', onclick: () => submitEditRecipe(r) }, 'Save changes'));
+  c.appendChild(actions);
+
+  document.getElementById('overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+async function submitEditRecipe(original) {
+  const name = document.getElementById('r-name').value.trim();
+  if (!name) { alert('Please give the recipe a name.'); return; }
+
+  const desc = document.getElementById('r-desc').value.trim();
+  const cuisine = document.getElementById('r-cuisine').value.trim();
+  const protein = document.getElementById('r-protein').value.trim();
+  const timeMin = parseInt(document.getElementById('r-time').value);
+  const baseServings = parseInt(document.getElementById('r-base-servings').value) || 2;
+  const pantry = document.getElementById('r-pantry').value.trim();
+  const allergens = document.getElementById('r-allergens').value.trim();
+  const ingredientsRaw = document.getElementById('r-ingredients').value.trim();
+  const methodRaw = document.getElementById('r-method').value.trim();
+
+  const ingredients = ingredientsRaw
+    ? ingredientsRaw.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const sep = l.search(/[:|]/); return sep > -1 ? [l.slice(0, sep).trim(), l.slice(sep + 1).trim()] : [l, '']; })
+    : [];
+  const method = methodRaw ? methodRaw.split('\n').map(l => l.replace(/^\d+[.)]\s*/, '').trim()).filter(Boolean) : [];
+
+  const updates = {
+    name, desc: desc || null, cuisine: cuisine || null, protein: protein || null,
+    timeMinutes: isNaN(timeMin) ? null : timeMin,
+    time: !isNaN(timeMin) ? timeMin + ' min' : null,
+    baseServings, pantry, allergens, ingredients, method,
+    image: addDisplayPhotoData || original.image || null,
+  };
+
+  if (original.firestoreId && FIREBASE_ENABLED && currentUser) {
+    const visEl = document.getElementById('r-visibility');
+    if (visEl) updates.isPublic = visEl.dataset.value === 'public';
+    const fsUpdates = Object.assign({}, updates);
+    fsUpdates.ingredients = ingredientsToFs(updates.ingredients);
+    // Remove nulls
+    Object.keys(fsUpdates).forEach(k => { if (fsUpdates[k] === null) delete fsUpdates[k]; });
+    try {
+      await firebaseDb.collection('recipes').doc(original.firestoreId).update(fsUpdates);
+      closeModal();
+    } catch (e) { alert('Failed to save: ' + e.message); }
+  } else {
+    // localStorage recipe
+    const idx = customRecipes.findIndex(r => r.id === original.id);
+    if (idx !== -1) {
+      customRecipes[idx] = Object.assign({}, customRecipes[idx], updates);
+      saveCustom(customRecipes);
+      closeModal(); renderFilters(); renderGrid();
+    }
+  }
 }
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal();closeAuthModal();} });
@@ -1564,6 +1748,7 @@ async function submitNewRecipe(sourceType) {
     if(newRecipe.ingredients) fsDoc.ingredients = ingredientsToFs(newRecipe.ingredients);
     fsDoc.userId=currentUser.uid;
     fsDoc.userEmail=currentUser.email;
+    fsDoc.userDisplayName = currentUser.displayName || loadFirstName() || currentUser.email.split('@')[0];
     fsDoc.isPublic=isPublic;
     fsDoc.createdAt=firebase.firestore.FieldValue.serverTimestamp();
 
