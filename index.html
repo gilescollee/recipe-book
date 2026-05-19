@@ -611,6 +611,7 @@ if (FIREBASE_ENABLED) {
     if (user && user.displayName && !loadFirstName()) {
       saveFirstName(user.displayName.split(' ')[0]);
     }
+    if (user) fetchGeminiKey(); else _geminiKey = null;
     updateAuthUI();
     if (user) {
       startPrivateListener(user.uid);
@@ -862,7 +863,6 @@ const SERVINGS_KEY  = 'recipe-book-servings';
 const API_KEY_KEY   = 'recipe-book-api-key';
 const MODEL_KEY     = 'recipe-book-model';
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
-const GEMINI_KEY_KEY  = 'recipe-book-gemini-key';
 const FIRST_NAME_KEY  = 'recipe-book-first-name';
 
 function loadCustom()   { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); } catch(e){ return []; } }
@@ -873,8 +873,18 @@ function loadApiKey()   { return localStorage.getItem(API_KEY_KEY)||''; }
 function saveApiKey(k)  { localStorage.setItem(API_KEY_KEY, k); }
 function loadModel()    { return localStorage.getItem(MODEL_KEY)||DEFAULT_MODEL; }
 function saveModel(m)   { localStorage.setItem(MODEL_KEY, m); }
-function loadGeminiKey(){ return localStorage.getItem(GEMINI_KEY_KEY)||''; }
-function saveGeminiKey(k){ localStorage.setItem(GEMINI_KEY_KEY, k); }
+// Gemini key — loaded from Firestore after sign-in, never stored client-side
+let _geminiKey = null;
+function loadGeminiKey() { return _geminiKey; }
+
+async function fetchGeminiKey() {
+  if (!FIREBASE_ENABLED || !currentUser) return;
+  try {
+    const doc = await firebaseDb.collection('_config').doc('gemini').get();
+    if (doc.exists) _geminiKey = doc.data().apiKey || null;
+  } catch(e) { console.warn('Could not load Gemini config:', e.message); }
+}
+
 function loadFirstName(){ return localStorage.getItem(FIRST_NAME_KEY)||''; }
 function saveFirstName(n){ localStorage.setItem(FIRST_NAME_KEY, n); }
 
@@ -887,6 +897,8 @@ function updateTitle() {
 }
 
 let customRecipes = loadCustom();
+// Remove any previously-stored Gemini key from localStorage
+localStorage.removeItem('recipe-book-gemini-key');
 
 // All recipes: built-ins + localStorage customs + Firestore
 function allRecipes() {
@@ -1609,7 +1621,7 @@ async function runOCRExtract(sourceWrap) {
 
   const geminiKey = loadGeminiKey();
   if (!geminiKey) {
-    alert('Please add your Gemini API key in Settings first.\n\nGet a free key at aistudio.google.com');
+    alert(currentUser ? 'AI features are still loading — please try again in a moment.' : 'Please sign in to use AI recipe extraction.');
     return;
   }
 
@@ -1701,7 +1713,7 @@ async function extractRecipeFromWebLink(url, sourceWrap) {
   if (!url) { alert('Please enter a web link first.'); return; }
   const geminiKey = loadGeminiKey();
   if (!geminiKey) {
-    alert('Please add your Gemini API key in Settings first.\n\nGet a free key at aistudio.google.com');
+    alert(currentUser ? 'AI features are still loading — please try again in a moment.' : 'Please sign in to use AI recipe extraction.');
     return;
   }
 
@@ -1711,32 +1723,17 @@ async function extractRecipeFromWebLink(url, sourceWrap) {
   sourceWrap.appendChild(status);
 
   try {
-    // Fetch via CORS proxy
-    const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-    if (!proxyRes.ok) throw new Error(`Could not fetch the page (HTTP ${proxyRes.status}). Try copying the recipe text and using Manual entry instead.`);
-    const proxyData = await proxyRes.json();
-    const html = proxyData.contents || '';
-    if (!html) throw new Error('The page returned empty content. Some sites block automated access — try Manual entry instead.');
+    status.textContent = '✨ Reading page with AI…';
 
-    // Strip HTML tags to plain text
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    ['script','style','nav','footer','header','aside','noscript','iframe'].forEach(tag =>
-      doc.querySelectorAll(tag).forEach(n => n.remove())
-    );
-    const pageText = (doc.body?.innerText || doc.body?.textContent || '')
-      .replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
-
-    if (pageText.length < 100) throw new Error('Could not extract readable text from this page. Try Manual entry instead.');
-
-    status.textContent = '✨ Extracting recipe with AI…';
-
+    // Use Gemini's built-in URL context — it fetches the page itself, no CORS proxy needed
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: GEMINI_RECIPE_PROMPT + '\n\nPage content:\n' + pageText.slice(0, 14000) }] }]
+          tools: [{ url_context: {} }],
+          contents: [{ parts: [{ text: `Visit this recipe page: ${url}\n\n${GEMINI_RECIPE_PROMPT}` }] }]
         })
       }
     );
@@ -1790,21 +1787,10 @@ function openSettings() {
   nameRow.appendChild(el('div', { class: 'form-hint' }, 'Shown in the title: "[Name] Dans La Cuisine"'));
   c.appendChild(nameRow);
 
-  // Gemini API key
-  const keyRow = el('div', { class: 'form-row' });
-  keyRow.appendChild(el('label', { for: 'gemini-key-input' }, 'Gemini API key'));
-  const keyInput = el('input', { type: 'password', id: 'gemini-key-input', placeholder: 'AIza…' });
-  keyInput.value = loadGeminiKey();
-  keyRow.appendChild(keyInput);
-  keyRow.appendChild(el('div', { class: 'form-hint' }, 'Free key from aistudio.google.com — used for photo-to-recipe extraction.'));
-  c.appendChild(keyRow);
-
   const actions=el('div',{class:'modal-actions'});
   actions.appendChild(el('button',{class:'btn ghost',type:'button',onclick:closeModal},'Cancel'));
   actions.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>{
-    const newName = nameInput.value.trim();
-    saveFirstName(newName);
-    saveGeminiKey(keyInput.value.trim());
+    saveFirstName(nameInput.value.trim());
     updateTitle();
     updateAuthUI();
     closeModal();
