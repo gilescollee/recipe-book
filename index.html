@@ -1632,11 +1632,11 @@ function openAddRecipe() {
   const tabsRow=el('div',{class:'source-tabs'});
   let currentSource='photo';
   const tabs={};
-  ['photo','instagram','web','manual'].forEach(s=>{
+  ['photo','web','manual'].forEach(s=>{
     const tab=el('button',{
       class:'source-tab'+(s==='photo'?' active':''), type:'button',
       onclick:()=>{ currentSource=s; Object.entries(tabs).forEach(([k,t])=>t.classList.toggle('active',k===s)); renderSourceField(); }
-    },{photo:'Photo (AI)',instagram:'Instagram',web:'Web link',manual:'Manual'}[s]);
+    },{photo:'Photo (AI)',web:'Web link',manual:'Manual'}[s]);
     tabs[s]=tab; tabsRow.appendChild(tab);
   });
   c.appendChild(tabsRow);
@@ -1669,14 +1669,6 @@ function openAddRecipe() {
       sourceWrap.appendChild(callout);
 
       // ── 2. Display photo upload ──
-      sourceWrap.appendChild(buildDisplayPhotoRow());
-
-    } else if(currentSource==='instagram') {
-      const row=el('div',{class:'form-row'});
-      row.appendChild(el('label',{for:'link-input'},'Instagram URL'));
-      row.appendChild(el('input',{type:'url',id:'link-input',placeholder:'https://www.instagram.com/p/...'}));
-      row.appendChild(el('div',{class:'form-hint'},'The card opens this link in a new tab.'));
-      sourceWrap.appendChild(row);
       sourceWrap.appendChild(buildDisplayPhotoRow());
 
     } else if(currentSource==='web') {
@@ -1778,7 +1770,7 @@ async function submitNewRecipe(sourceType) {
   if(!name){alert('Please give the recipe a name.');return;}
   const linkInput=document.getElementById('link-input');
   const link=linkInput?linkInput.value.trim():'';
-  if((sourceType==='instagram'||sourceType==='web')&&!link){alert('Please add the link.');return;}
+  if(sourceType==='web'&&!link){alert('Please add the link.');return;}
 
   const desc=document.getElementById('r-desc').value.trim();
   const cuisine=document.getElementById('r-cuisine').value.trim();
@@ -1795,7 +1787,7 @@ async function submitNewRecipe(sourceType) {
     :[];
   const method=methodRaw?methodRaw.split('\n').map(l=>l.replace(/^\d+[.)]\s*/,'').trim()).filter(Boolean):[];
 
-  const sourceLabel={photo:'Your photo',instagram:'Instagram',web:'Web link',manual:'Your recipe'}[sourceType];
+  const sourceLabel={photo:'Your photo',web:'Web link',manual:'Your recipe'}[sourceType];
 
   const newRecipe={
     id:'C-'+Date.now(), name, source:sourceLabel, custom:true,
@@ -1805,8 +1797,8 @@ async function submitNewRecipe(sourceType) {
     baseServings, desc:desc||null, tags:[],
     ingredients, pantry, allergens, method,
     image:addDisplayPhotoData||null,
-    link:(sourceType==='instagram'||sourceType==='web')?link:null,
-    linkType:sourceType==='instagram'?'instagram':(sourceType==='web'?'web':null)
+    link:sourceType==='web'?link:null,
+    linkType:sourceType==='web'?'web':null
   };
 
   if (FIREBASE_ENABLED && currentUser) {
