@@ -477,8 +477,7 @@
           <div class="dd-email" id="user-email-display" style="display:none"></div>
           <div class="dd-divider" id="dd-auth-divider" style="display:none"></div>
           <button id="dd-signin-btn" type="button" style="display:none" onclick="event.stopPropagation();closeUserDropdown();openAuthModal('signin')">Sign in</button>
-          <div class="dd-divider" id="dd-signin-divider" style="display:none"></div>
-          <button type="button" onclick="event.stopPropagation();closeUserDropdown();openSettings()">⚙ Settings</button>
+          <button id="dd-settings-btn" type="button" style="display:none" onclick="event.stopPropagation();closeUserDropdown();openSettings()">⚙ Settings</button>
           <button id="dd-signout-btn" type="button" class="danger" style="display:none" onclick="event.stopPropagation();doSignOut()">Sign out</button>
         </div>
       </button>
@@ -575,7 +574,7 @@ function updateAuthUI() {
   const emailEl          = document.getElementById('user-email-display');
   const authDivider      = document.getElementById('dd-auth-divider');
   const signinBtn        = document.getElementById('dd-signin-btn');
-  const signinDivider    = document.getElementById('dd-signin-divider');
+  const settingsBtn      = document.getElementById('dd-settings-btn');
   const signoutBtn       = document.getElementById('dd-signout-btn');
   const footerEl         = document.getElementById('footer-text');
 
@@ -588,14 +587,14 @@ function updateAuthUI() {
     if (nameEl)  nameEl.textContent  = displayName;
     if (emailEl) emailEl.textContent = currentUser.email;
     show(nameEl, true); show(emailEl, true);
-    show(authDivider, true); show(signinBtn, false); show(signinDivider, false);
-    show(signoutBtn, true);
+    show(authDivider, true); show(signinBtn, false);
+    show(settingsBtn, true); show(signoutBtn, true);
     if (footerEl) footerEl.textContent = 'Signed in as ' + currentUser.email + '. New recipes save to the cloud.';
   } else {
     userAvatar.textContent = '?';
     show(nameEl, false); show(emailEl, false);
-    show(authDivider, false); show(signinBtn, true); show(signinDivider, true);
-    show(signoutBtn, false);
+    show(authDivider, false); show(signinBtn, true);
+    show(settingsBtn, false); show(signoutBtn, false);
     if (footerEl) footerEl.textContent = 'Recipes you add are saved in your browser. Sign in to save to the cloud and share with others.';
   }
   updateTitle();
@@ -625,9 +624,7 @@ if (FIREBASE_ENABLED) {
 window.addEventListener('DOMContentLoaded', function() {
   if (!FIREBASE_ENABLED) {
     const btn = document.getElementById('dd-signin-btn');
-    const div = document.getElementById('dd-signin-divider');
     if (btn) btn.style.display = 'none';
-    if (div) div.style.display = 'none';
   }
 });
 
