@@ -23,16 +23,16 @@
     padding: 48px 24px 120px;
   }
   .wrap { max-width: 1200px; margin: 0 auto; }
-  header { margin-bottom: 24px; }
-  .header-top {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px; margin-bottom: 14px;
-  }
-  .header-brand { flex: 1; min-width: 0; }
-  header h1 { margin: 0 0 4px; font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
-  header p { margin: 0; color: var(--muted); font-size: 16px; }
+  header { margin-bottom: 24px; text-align: center; position: relative; }
+  header h1 { margin: 4px 0 0; font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
+  .header-brand img { display: block; margin: 0 auto; }
   .header-right {
-    display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-top: 4px;
+    position: absolute; top: 0; right: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .view-controls {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
   }
   .header-brand img {
     height: 160px; width: auto; object-fit: contain; display: block; margin-bottom: 10px;
@@ -164,7 +164,7 @@
   }
 
   /* View tabs */
-  .view-tabs { display: flex; gap: 6px; margin-bottom: 20px; justify-content: flex-end; }
+  .view-tabs { display: flex; gap: 6px; }
 
   /* Servings + basket row below filters */
   .recipe-controls { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
@@ -459,36 +459,35 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="header-top">
-      <div class="header-brand">
-        <img src="header.jpg" alt="Dans La Cuisine">
-        <h1 id="app-title">Dans La Cuisine</h1>
-        <p id="header-sub">Click any card to open the full recipe.</p>
-      </div>
-      <div class="header-right">
-        <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
-        <!-- User icon — dropdown is a sibling div, not nested inside button -->
-        <div class="user-menu-wrap">
-          <button class="user-menu" id="user-menu" type="button" style="display:inline-flex" onclick="toggleUserDropdown()">
-            <div class="user-avatar" id="user-avatar">?</div>
-            <span class="user-caret">▾</span>
-          </button>
-          <div class="user-dropdown" id="user-dropdown">
-            <div class="dd-name dd-hidden" id="user-name-display"></div>
-            <div class="dd-email dd-hidden" id="user-email-display"></div>
-            <div class="dd-divider dd-hidden" id="dd-auth-divider"></div>
-            <button id="dd-signin-btn" class="dd-hidden" type="button" onclick="closeUserDropdown();openAuthModal('signin')">Sign in</button>
-            <button id="dd-settings-btn" class="dd-hidden" type="button" onclick="closeUserDropdown();openSettings()">⚙ Settings</button>
-            <button id="dd-signout-btn" class="dd-hidden danger" type="button" onclick="doSignOut()">Sign out</button>
-          </div>
+    <div class="header-brand">
+      <img src="header.jpg" alt="Dans La Cuisine">
+      <h1 id="app-title">Dans La Cuisine</h1>
+    </div>
+    <div class="header-right">
+      <!-- User icon -->
+      <div class="user-menu-wrap">
+        <button class="user-menu" id="user-menu" type="button" style="display:inline-flex" onclick="toggleUserDropdown()">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <span class="user-caret">▾</span>
+        </button>
+        <div class="user-dropdown" id="user-dropdown">
+          <div class="dd-name dd-hidden" id="user-name-display"></div>
+          <div class="dd-email dd-hidden" id="user-email-display"></div>
+          <div class="dd-divider dd-hidden" id="dd-auth-divider"></div>
+          <button id="dd-signin-btn" class="dd-hidden" type="button" onclick="closeUserDropdown();openAuthModal('signin')">Sign in</button>
+          <button id="dd-settings-btn" class="dd-hidden" type="button" onclick="closeUserDropdown();openSettings()">⚙ Settings</button>
+          <button id="dd-signout-btn" class="dd-hidden danger" type="button" onclick="doSignOut()">Sign out</button>
         </div>
       </div>
     </div>
   </header>
 
-  <div class="view-tabs">
-    <button class="view-tab active" type="button" data-view="recipes">Recipes</button>
-    <button class="view-tab" type="button" data-view="pantry">Pantry</button>
+  <div class="view-controls">
+    <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
+    <div class="view-tabs">
+      <button class="view-tab active" type="button" data-view="recipes">Recipes</button>
+      <button class="view-tab" type="button" data-view="pantry">Pantry</button>
+    </div>
   </div>
 
   <div id="recipes-view">
