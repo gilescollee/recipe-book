@@ -1341,11 +1341,11 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal();clos
 
 // ============ Add recipe ============
 
-let addRecipeImages=[], addRecipeImageData=null;
+let addRecipeImages=[], addRecipeImageData=null, addDisplayPhotoData=null;
 
 function openAddRecipe() {
   state.openRecipeId=null; state.shoppingListOpen=false;
-  addRecipeImages=[]; addRecipeImageData=null;
+  addRecipeImages=[]; addRecipeImageData=null; addDisplayPhotoData=null;
 
   const c=document.getElementById('modal-content'); c.innerHTML='';
   c.appendChild(el('h1',{},'Add a recipe'));
@@ -1381,8 +1381,9 @@ function openAddRecipe() {
   function renderSourceField() {
     sourceWrap.innerHTML='';
     if (currentSource==='photo') {
-      const row=el('div',{class:'form-row'});
-      row.appendChild(el('label',{},'Photo(s) of recipe card'));
+      // ── 1. OCR upload (for AI text extraction only) ──
+      const ocrRow=el('div',{class:'form-row'});
+      ocrRow.appendChild(el('label',{},'📋 Recipe card — for AI text extraction'));
       const fi=el('input',{type:'file',accept:'image/*',multiple:'multiple'});
       const prev=el('div',{class:'image-preview'});
       fi.addEventListener('change',async e=>{
@@ -1390,31 +1391,70 @@ function openAddRecipe() {
         for(const f of addRecipeImages) prev.appendChild(el('img',{src:URL.createObjectURL(f),alt:f.name}));
         if(addRecipeImages[0]){const r=new FileReader();r.onload=ev=>{addRecipeImageData=ev.target.result;};r.readAsDataURL(addRecipeImages[0]);}
       });
-      row.appendChild(fi); row.appendChild(prev);
-      row.appendChild(el('div',{class:'form-hint'},'Tip: upload both front (ingredients) and back (method) of a Gousto card for best extraction.'));
-      sourceWrap.appendChild(row);
+      ocrRow.appendChild(fi); ocrRow.appendChild(prev);
+      ocrRow.appendChild(el('div',{class:'form-hint'},'Tip: upload both sides of a Gousto card for best results. This photo is used for extraction only.'));
+      sourceWrap.appendChild(ocrRow);
       const callout=el('div',{class:'ai-callout'});
       const tw=el('div',{class:'ai-callout-text'});
-      tw.appendChild(el('strong',{},'📷 Auto-fill from photo'));
-      tw.appendChild(document.createTextNode('Upload a photo and Gemini AI will extract the recipe fields for you. Add your free API key in Settings first.'));
+      tw.appendChild(el('strong',{},'✨ Auto-fill from photo'));
+      tw.appendChild(document.createTextNode(' Gemini AI will read the card and fill in all the recipe fields.'));
       callout.appendChild(tw);
-      const xBtn=el('button',{class:'btn primary',type:'button',onclick:()=>runOCRExtract(sourceWrap)},'✨ Extract recipe with AI');
-      callout.appendChild(xBtn); sourceWrap.appendChild(callout);
+      callout.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>runOCRExtract(sourceWrap)},'✨ Extract recipe with AI'));
+      sourceWrap.appendChild(callout);
+
+      // ── 2. Display photo upload ──
+      sourceWrap.appendChild(buildDisplayPhotoRow());
+
     } else if(currentSource==='instagram') {
       const row=el('div',{class:'form-row'});
       row.appendChild(el('label',{for:'link-input'},'Instagram URL'));
       row.appendChild(el('input',{type:'url',id:'link-input',placeholder:'https://www.instagram.com/p/...'}));
       row.appendChild(el('div',{class:'form-hint'},'The card opens this link in a new tab.'));
       sourceWrap.appendChild(row);
+      sourceWrap.appendChild(buildDisplayPhotoRow());
+
     } else if(currentSource==='web') {
       const row=el('div',{class:'form-row'});
       row.appendChild(el('label',{for:'link-input'},'Web link'));
-      row.appendChild(el('input',{type:'url',id:'link-input',placeholder:'https://...'}));
+      const linkInput=el('input',{type:'url',id:'link-input',placeholder:'https://...'});
+      row.appendChild(linkInput);
       row.appendChild(el('div',{class:'form-hint'},'The card opens this link in a new tab.'));
       sourceWrap.appendChild(row);
+
+      // Gemini web extraction callout
+      const webCallout=el('div',{class:'ai-callout'});
+      const wt=el('div',{class:'ai-callout-text'});
+      wt.appendChild(el('strong',{},'✨ Extract recipe from link'));
+      wt.appendChild(document.createTextNode(' Gemini AI will read the page and fill in all the recipe fields automatically.'));
+      webCallout.appendChild(wt);
+      webCallout.appendChild(el('button',{class:'btn primary',type:'button',onclick:()=>extractRecipeFromWebLink(linkInput.value.trim(),sourceWrap)},'✨ Read recipe from link'));
+      sourceWrap.appendChild(webCallout);
+      sourceWrap.appendChild(buildDisplayPhotoRow());
+
     } else {
       sourceWrap.appendChild(el('div',{class:'form-hint'},'No external source — fill in the recipe details below.'));
+      sourceWrap.appendChild(buildDisplayPhotoRow());
     }
+  }
+
+  function buildDisplayPhotoRow() {
+    const row=el('div',{class:'form-row',style:'margin-top:12px'});
+    row.appendChild(el('label',{},'🖼 Display photo (optional)'));
+    const fi=el('input',{type:'file',accept:'image/*'});
+    const prev=el('div',{class:'image-preview'});
+    fi.addEventListener('change',e=>{
+      const file=e.target.files[0]; if(!file) return;
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        addDisplayPhotoData=ev.target.result;
+        prev.innerHTML='';
+        prev.appendChild(el('img',{src:addDisplayPhotoData,alt:'Display photo',style:'max-width:160px;max-height:120px;border-radius:8px;object-fit:cover;border:1px solid var(--border)'}));
+      };
+      reader.readAsDataURL(file);
+    });
+    row.appendChild(fi); row.appendChild(prev);
+    row.appendChild(el('div',{class:'form-hint'},'Photo shown on the recipe card. If left blank, no photo will be shown.'));
+    return row;
   }
   renderSourceField();
 
@@ -1473,7 +1513,6 @@ async function submitNewRecipe(sourceType) {
   const linkInput=document.getElementById('link-input');
   const link=linkInput?linkInput.value.trim():'';
   if((sourceType==='instagram'||sourceType==='web')&&!link){alert('Please add the link.');return;}
-  if(sourceType==='photo'&&!addRecipeImageData){alert('Please choose a photo.');return;}
 
   const desc=document.getElementById('r-desc').value.trim();
   const cuisine=document.getElementById('r-cuisine').value.trim();
@@ -1499,7 +1538,7 @@ async function submitNewRecipe(sourceType) {
     time:!isNaN(timeMin)?timeMin+' min':null,
     baseServings, desc:desc||null, tags:[],
     ingredients, pantry, allergens, method,
-    image:sourceType==='photo'?addRecipeImageData:null,
+    image:addDisplayPhotoData||null,
     link:(sourceType==='instagram'||sourceType==='web')?link:null,
     linkType:sourceType==='instagram'?'instagram':(sourceType==='web'?'web':null)
   };
@@ -1628,6 +1667,90 @@ Use null for any fields not visible. Return ONLY the JSON object.` });
     text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
 
     const parsed = JSON.parse(text);
+    fillFormFromExtract(parsed);
+
+    status.className = 'extract-status success';
+    status.textContent = '✓ Recipe extracted! Review the fields below and click Save recipe.';
+
+  } catch (e) {
+    console.error(e);
+    status.className = 'extract-status error';
+    status.textContent = 'Could not extract recipe: ' + e.message;
+  }
+}
+
+// ============ Recipe extraction (Gemini + web link via CORS proxy) ============
+
+const GEMINI_RECIPE_PROMPT = `Extract the recipe from this content and return ONLY a JSON object with these exact fields (no markdown, no explanation, no code fences):
+{
+  "name": "Recipe name",
+  "desc": "Brief 1-2 sentence description",
+  "cuisine": "e.g. Italian, Asian, British",
+  "protein": "e.g. chicken, fish, vegetarian",
+  "timeMinutes": 30,
+  "baseServings": 4,
+  "calories": "486 kcal",
+  "allergens": "e.g. gluten, dairy, nuts",
+  "pantry": "pantry staples needed",
+  "ingredients": [["ingredient name", "quantity e.g. 200g"], ["next ingredient", "qty"]],
+  "method": ["Step 1 text", "Step 2 text"]
+}
+Use null for any fields not present. Return ONLY the JSON object.`;
+
+async function extractRecipeFromWebLink(url, sourceWrap) {
+  if (!url) { alert('Please enter a web link first.'); return; }
+  const geminiKey = loadGeminiKey();
+  if (!geminiKey) {
+    alert('Please add your Gemini API key in Settings first.\n\nGet a free key at aistudio.google.com');
+    return;
+  }
+
+  let status = sourceWrap.querySelector('.extract-status');
+  if (status) status.remove();
+  status = el('div', { class:'extract-status' }, '🌐 Fetching page…');
+  sourceWrap.appendChild(status);
+
+  try {
+    // Fetch via CORS proxy
+    const proxyRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+    if (!proxyRes.ok) throw new Error(`Could not fetch the page (HTTP ${proxyRes.status}). Try copying the recipe text and using Manual entry instead.`);
+    const proxyData = await proxyRes.json();
+    const html = proxyData.contents || '';
+    if (!html) throw new Error('The page returned empty content. Some sites block automated access — try Manual entry instead.');
+
+    // Strip HTML tags to plain text
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    ['script','style','nav','footer','header','aside','noscript','iframe'].forEach(tag =>
+      doc.querySelectorAll(tag).forEach(n => n.remove())
+    );
+    const pageText = (doc.body?.innerText || doc.body?.textContent || '')
+      .replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+    if (pageText.length < 100) throw new Error('Could not extract readable text from this page. Try Manual entry instead.');
+
+    status.textContent = '✨ Extracting recipe with AI…';
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: GEMINI_RECIPE_PROMPT + '\n\nPage content:\n' + pageText.slice(0, 14000) }] }]
+        })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `Gemini API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    responseText = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
+    const parsed = JSON.parse(responseText);
     fillFormFromExtract(parsed);
 
     status.className = 'extract-status success';
