@@ -336,7 +336,9 @@
 
   /* ===== AUTH STYLES ===== */
 
-  /* User menu button (shown when signed in) */
+  .user-menu-wrap { position: relative; }
+
+  /* User menu button */
   .user-menu {
     display: none; align-items: center; gap: 5px;
     background: #fff; border: 1px solid var(--border); border-radius: 999px;
@@ -358,6 +360,7 @@
     overflow: hidden; display: none;
   }
   .user-dropdown.open { display: block; }
+
   .user-dropdown button {
     display: block; width: 100%; text-align: left; padding: 11px 16px;
     background: none; border: 0; font-size: 14px; cursor: pointer; font-family: inherit; color: var(--ink);
@@ -466,19 +469,21 @@
       </div>
       <div class="header-right">
         <button class="btn primary" id="add-recipe" type="button">+ Add recipe</button>
-        <!-- User icon inline in header-right -->
-        <button class="user-menu" id="user-menu" type="button" style="display:inline-flex" onclick="toggleUserDropdown()">
-          <div class="user-avatar" id="user-avatar">?</div>
-          <span class="user-caret">▾</span>
+        <!-- User icon — dropdown is a sibling div, not nested inside button -->
+        <div class="user-menu-wrap">
+          <button class="user-menu" id="user-menu" type="button" style="display:inline-flex" onclick="toggleUserDropdown()">
+            <div class="user-avatar" id="user-avatar">?</div>
+            <span class="user-caret">▾</span>
+          </button>
           <div class="user-dropdown" id="user-dropdown">
             <div class="dd-name dd-hidden" id="user-name-display"></div>
             <div class="dd-email dd-hidden" id="user-email-display"></div>
             <div class="dd-divider dd-hidden" id="dd-auth-divider"></div>
-            <button id="dd-signin-btn" class="dd-hidden" type="button" onclick="event.stopPropagation();closeUserDropdown();openAuthModal('signin')">Sign in</button>
-            <button id="dd-settings-btn" class="dd-hidden" type="button" onclick="event.stopPropagation();closeUserDropdown();openSettings()">⚙ Settings</button>
-            <button id="dd-signout-btn" class="dd-hidden danger" type="button" onclick="event.stopPropagation();doSignOut()">Sign out</button>
+            <button id="dd-signin-btn" class="dd-hidden" type="button" onclick="closeUserDropdown();openAuthModal('signin')">Sign in</button>
+            <button id="dd-settings-btn" class="dd-hidden" type="button" onclick="closeUserDropdown();openSettings()">⚙ Settings</button>
+            <button id="dd-signout-btn" class="dd-hidden danger" type="button" onclick="doSignOut()">Sign out</button>
           </div>
-        </button>
+        </div>
       </div>
       <div class="header-image-wrap">
         <img src="header.jpg" alt="Dans La Cuisine">
@@ -854,8 +859,8 @@ function closeUserDropdown() {
   if (dd) dd.classList.remove('open');
 }
 document.addEventListener('click', function(e) {
-  var menu = document.getElementById('user-menu');
-  if (menu && !menu.contains(e.target)) closeUserDropdown();
+  var wrap = document.querySelector('.user-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) closeUserDropdown();
 });
 
 // ============================================================
