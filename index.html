@@ -331,6 +331,33 @@
 
   footer { margin-top: 48px; text-align: center; color: var(--muted); font-size: 13px; }
 
+  /* Welcome screen */
+  #welcome-screen {
+    position: fixed; inset: 0; z-index: 300;
+    background: var(--warm-cream);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px 16px;
+  }
+  .welcome-inner {
+    max-width: 420px; width: 100%; text-align: center;
+  }
+  .welcome-inner img {
+    height: 200px; width: auto; display: block; margin: 0 auto 20px;
+    object-fit: contain;
+  }
+  .welcome-inner h1 {
+    margin: 0 0 8px; font-size: 40px; font-weight: 700; letter-spacing: -0.02em;
+  }
+  .welcome-tagline {
+    color: var(--muted); font-size: 16px; margin: 0 0 32px;
+  }
+  .welcome-actions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .welcome-actions .btn { width: 100%; padding: 12px; font-size: 15px; justify-content: center; }
+  .welcome-guest { font-size: 14px; color: var(--muted); margin: 0 0 8px; }
+  .welcome-guest a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  .welcome-guest a:hover { text-decoration: underline; }
+  .welcome-note { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.5; }
+
   /* ===== AUTH STYLES ===== */
 
   .user-menu-wrap { position: relative; }
@@ -543,6 +570,23 @@
   </div>
 </div>
 
+<!-- Welcome screen (shown to signed-out users on first load) -->
+<div id="welcome-screen" style="display:none">
+  <div class="welcome-inner">
+    <img src="header.jpg" alt="Dans La Cuisine">
+    <h1>Dans La Cuisine</h1>
+    <p class="welcome-tagline">Your personal recipe collection</p>
+    <div class="welcome-actions">
+      <button class="btn primary" type="button" onclick="openAuthModal('signup')">Create account</button>
+      <button class="btn" type="button" onclick="openAuthModal('signin')">Sign in</button>
+    </div>
+    <p class="welcome-guest">
+      <a href="#" onclick="dismissWelcome();return false;">Continue without signing in</a>
+    </p>
+    <p class="welcome-note">You can browse recipes freely, but you'll need to sign in to add your own.</p>
+  </div>
+</div>
+
 <!-- Auth modal (higher z-index so it sits above recipe modal) -->
 <div class="auth-overlay" id="auth-overlay" onclick="if(event.target===this)closeAuthModal()">
   <div class="auth-modal">
@@ -583,6 +627,21 @@ let currentUser        = null;
 let firestoreRecipes   = [];
 let publicUnsubscribe  = null;
 let privateUnsubscribe = null;
+let welcomeDismissed   = false;
+
+function showWelcomeIfNeeded() {
+  const screen = document.getElementById('welcome-screen');
+  if (!screen) return;
+  // Show welcome only when Firebase is enabled, user is signed out, and hasn't dismissed
+  const shouldShow = FIREBASE_ENABLED && !currentUser && !welcomeDismissed;
+  screen.style.display = shouldShow ? 'flex' : 'none';
+}
+
+function dismissWelcome() {
+  welcomeDismissed = true;
+  const screen = document.getElementById('welcome-screen');
+  if (screen) screen.style.display = 'none';
+}
 
 function updateAuthUI() {
   const userAvatar       = document.getElementById('user-avatar');
@@ -614,6 +673,7 @@ function updateAuthUI() {
     if (footerEl) footerEl.textContent = 'Recipes you add are saved in your browser. Sign in to save to the cloud and share with others.';
   }
   updateTitle();
+  showWelcomeIfNeeded();
 }
 
 if (FIREBASE_ENABLED) {
@@ -635,6 +695,11 @@ if (FIREBASE_ENABLED) {
     }
   });
 }
+
+// Show welcome screen immediately on load if Firebase is enabled (before auth resolves)
+window.addEventListener('DOMContentLoaded', function() {
+  if (FIREBASE_ENABLED) showWelcomeIfNeeded();
+});
 
 // If Firebase isn't configured, keep sign-in dropdown item hidden (already dd-hidden by default)
 
