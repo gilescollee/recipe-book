@@ -1642,26 +1642,59 @@ function openCookMode(r) {
       const h2 = document.createElement('h2');
       h2.textContent = r.name;
       div.appendChild(h2);
-      const metaLine = [r.time, r.calories, 'Serves ' + state.servings].filter(Boolean).join(' · ');
-      if (metaLine) {
+
+      // Meta line (time, calories — no servings here, that's the control below)
+      const metaParts = [r.time, r.calories].filter(Boolean);
+      if (metaParts.length) {
         const meta = document.createElement('div');
-        meta.style.cssText = 'font-size:15px;color:var(--muted);margin-bottom:8px';
-        meta.textContent = metaLine;
+        meta.style.cssText = 'font-size:15px;color:var(--muted);margin-bottom:12px';
+        meta.textContent = metaParts.join(' · ');
         div.appendChild(meta);
       }
+
+      // Servings control
+      const servingsWrap = document.createElement('div');
+      servingsWrap.className = 'servings-control';
+      servingsWrap.style.marginBottom = '16px';
+      const sLabel = Object.assign(document.createElement('span'), { className: 'label', textContent: 'Serves' });
+      const sMinus = Object.assign(document.createElement('button'), { className: 'servings-btn', type: 'button', textContent: '−', ariaLabel: 'Decrease servings' });
+      const sValue = Object.assign(document.createElement('span'), { className: 'value', textContent: String(state.servings) });
+      const sPlus  = Object.assign(document.createElement('button'), { className: 'servings-btn', type: 'button', textContent: '+', ariaLabel: 'Increase servings' });
+      sMinus.disabled = state.servings <= 1;
+      servingsWrap.appendChild(sLabel);
+      servingsWrap.appendChild(sMinus);
+      servingsWrap.appendChild(sValue);
+      servingsWrap.appendChild(sPlus);
+      div.appendChild(servingsWrap);
+
+      // Ingredients list — re-renders when servings change
       const ul = document.createElement('ul');
       ul.className = 'cook-ingredients-list';
-      (r.ingredients || []).forEach(([item, qty]) => {
-        const li = document.createElement('li');
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = item;
-        const qtySpan = document.createElement('span');
-        qtySpan.className = 'qty';
-        qtySpan.textContent = scaleQty(qty, factor) || '—';
-        li.appendChild(nameSpan);
-        li.appendChild(qtySpan);
-        ul.appendChild(li);
+
+      function renderCookIngredients() {
+        ul.innerHTML = '';
+        const f = scaleFactor(r);
+        sValue.textContent = String(state.servings);
+        sMinus.disabled = state.servings <= 1;
+        (r.ingredients || []).forEach(([item, qty]) => {
+          const li = document.createElement('li');
+          li.appendChild(Object.assign(document.createElement('span'), { textContent: item }));
+          li.appendChild(Object.assign(document.createElement('span'), { className: 'qty', textContent: scaleQty(qty, f) || '—' }));
+          ul.appendChild(li);
+        });
+      }
+
+      sMinus.addEventListener('click', () => {
+        if (state.servings <= 1) return;
+        state.servings = Math.max(1, state.servings - 1);
+        saveServings(state.servings); updateServingsDisplay(); renderCookIngredients();
       });
+      sPlus.addEventListener('click', () => {
+        state.servings = Math.min(50, state.servings + 1);
+        saveServings(state.servings); updateServingsDisplay(); renderCookIngredients();
+      });
+
+      renderCookIngredients();
       div.appendChild(ul);
     } else {
       const numEl = document.createElement('div');
