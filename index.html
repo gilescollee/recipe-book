@@ -1687,11 +1687,15 @@ function openCookMode(r) {
   buildCookDots();
   updateCookNav();
 
-  // Scroll to start
-  carousel.scrollLeft = 0;
-
   document.getElementById('cook-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+
+  // Reset to first card after the overlay is painted
+  requestAnimationFrame(() => {
+    carousel.style.scrollBehavior = 'auto';
+    carousel.scrollLeft = 0;
+    requestAnimationFrame(() => { carousel.style.scrollBehavior = ''; });
+  });
 }
 
 function closeCookMode() {
