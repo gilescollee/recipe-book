@@ -638,7 +638,9 @@ function startPublicListener() {
     .where('isPublic', '==', true)
     .onSnapshot(function(snap) {
       var publicRecipes = snap.docs.map(function(doc) {
-        return Object.assign({}, doc.data(), { firestoreId: doc.id, custom: true, _fsSource: 'public' });
+        var d = doc.data();
+        d.ingredients = ingredientsFromFs(d.ingredients);
+        return Object.assign({}, d, { firestoreId: doc.id, custom: true, _fsSource: 'public' });
       });
       firestoreRecipes = firestoreRecipes.filter(function(r) { return r._fsSource === 'private'; }).concat(publicRecipes);
       renderFilters();
@@ -653,7 +655,9 @@ function startPrivateListener(userId) {
     .where('isPublic', '==', false)
     .onSnapshot(function(snap) {
       var privateRecipes = snap.docs.map(function(doc) {
-        return Object.assign({}, doc.data(), { firestoreId: doc.id, custom: true, _fsSource: 'private' });
+        var d = doc.data();
+        d.ingredients = ingredientsFromFs(d.ingredients);
+        return Object.assign({}, d, { firestoreId: doc.id, custom: true, _fsSource: 'private' });
       });
       firestoreRecipes = firestoreRecipes.filter(function(r) { return r._fsSource !== 'private'; }).concat(privateRecipes);
       renderFilters();
@@ -1196,6 +1200,10 @@ function clearSelected() { state.selected.clear(); updateBasketCount(); renderGr
 
 function normaliseName(s) { return s.toLowerCase().replace(/\(.*?\)/g,'').replace(/[*]/g,'').trim(); }
 
+// Firestore can't store nested arrays — convert ingredients to/from objects
+function ingredientsToFs(arr)   { return (arr||[]).map(([n,q])=>({n:n||'',q:q||''})); }
+function ingredientsFromFs(arr) { return (arr||[]).map(i=>Array.isArray(i)?i:[i.n||'',i.q||'']); }
+
 function buildShoppingList() {
   const selected = allRecipes().filter(r=>state.selected.has(r.id));
   const map = new Map();
@@ -1503,7 +1511,9 @@ async function submitNewRecipe(sourceType) {
 
     // Build clean Firestore document — omit large image blobs and null values
     const fsDoc={};
-    ['id','name','source','custom','cuisine','protein','timeMinutes','time','baseServings','desc','tags','ingredients','pantry','allergens','method','link','linkType'].forEach(k=>{if(newRecipe[k]!=null)fsDoc[k]=newRecipe[k];});
+    ['id','name','source','custom','cuisine','protein','timeMinutes','time','baseServings','desc','tags','pantry','allergens','method','link','linkType'].forEach(k=>{if(newRecipe[k]!=null)fsDoc[k]=newRecipe[k];});
+    // Firestore bans nested arrays — store ingredients as objects
+    if(newRecipe.ingredients) fsDoc.ingredients = ingredientsToFs(newRecipe.ingredients);
     fsDoc.userId=currentUser.uid;
     fsDoc.userEmail=currentUser.email;
     fsDoc.isPublic=isPublic;
