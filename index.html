@@ -1927,8 +1927,7 @@ async function extractRecipeFromWebLink(url, sourceWrap) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tools: [{ url_context: {} }],
-          contents: [{ parts: [{ text: `Visit this recipe page: ${url}\n\n${GEMINI_RECIPE_PROMPT}` }] }],
-          generationConfig: { responseMimeType: 'application/json' }
+          contents: [{ parts: [{ text: `Visit this recipe page: ${url}\n\n${GEMINI_RECIPE_PROMPT}` }] }]
         })
       }
     );
