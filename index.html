@@ -1192,7 +1192,8 @@ function renderCard(r) {
   }, '🛒');
   card.appendChild(basketBtn);
 
-  if (r.image) card.appendChild(el('img', { class:'card-image', src:r.image, alt:r.name }));
+  const cardPhoto = r.image || r.photoUrl;
+  if (cardPhoto) card.appendChild(el('img', { class:'card-image', src:cardPhoto, alt:r.name }));
 
   const top = el('div', { class:'card-top' });
   top.appendChild(el('div', { class:'rcode' }, (r.id||'')+(r.id&&r.source?' · ':'')+(r.source||'')));
@@ -1392,7 +1393,8 @@ function openRecipe(r) {
   const factor=scaleFactor(r), base=r.baseServings||2;
   const c=document.getElementById('modal-content'); c.innerHTML='';
 
-  if(r.image) c.appendChild(el('img',{class:'modal-photo',src:r.image,alt:r.name}));
+  const recipePhoto = r.image || r.photoUrl;
+  if(recipePhoto) c.appendChild(el('img',{class:'modal-photo',src:recipePhoto,alt:r.name}));
   if(r.id||r.source) c.appendChild(el('div',{class:'meta'},r.id?el('span',{class:'meta-rcode'},r.id):null,document.createTextNode((r.id&&r.source?' · ':'')+(r.source||''))));
   c.appendChild(el('h1',{},r.name));
   const metaLine=[r.time,r.calories,r.cuisine,r.protein].filter(Boolean).join(' · ');
