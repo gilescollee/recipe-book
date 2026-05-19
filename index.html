@@ -1846,7 +1846,10 @@ Use null for any fields not visible. Return ONLY the JSON object.` });
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }] })
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { responseMimeType: 'application/json' }
+        })
       }
     );
 
@@ -1856,7 +1859,10 @@ Use null for any fields not visible. Return ONLY the JSON object.` });
     }
 
     const data = await res.json();
+    const finishReason = data.candidates?.[0]?.finishReason;
+    if (finishReason && finishReason !== 'STOP') throw new Error(`Gemini stopped with reason: ${finishReason}. Try a clearer photo.`);
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!raw) throw new Error('Gemini returned an empty response. Try a clearer photo.');
     const parsed = extractJSON(raw);
     fillFormFromExtract(parsed);
 
@@ -1921,7 +1927,8 @@ async function extractRecipeFromWebLink(url, sourceWrap) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tools: [{ url_context: {} }],
-          contents: [{ parts: [{ text: `Visit this recipe page: ${url}\n\n${GEMINI_RECIPE_PROMPT}` }] }]
+          contents: [{ parts: [{ text: `Visit this recipe page: ${url}\n\n${GEMINI_RECIPE_PROMPT}` }] }],
+          generationConfig: { responseMimeType: 'application/json' }
         })
       }
     );
@@ -1932,7 +1939,10 @@ async function extractRecipeFromWebLink(url, sourceWrap) {
     }
 
     const data = await res.json();
+    const finishReason = data.candidates?.[0]?.finishReason;
+    if (finishReason && finishReason !== 'STOP') throw new Error(`Gemini stopped with reason: ${finishReason}.`);
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!raw) throw new Error('Gemini returned an empty response.');
     const parsed = extractJSON(raw);
     fillFormFromExtract(parsed);
 
